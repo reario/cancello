@@ -10,8 +10,46 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <time.h>
 #include <modbus.h>
 #include "gh.h"
+
+int ts(char * tst, char * fmt)
+{
+  time_t current_time;
+  char MYTIME[50];
+  struct tm *tmp ;
+  /* Obtain current time. */
+  current_time = time(NULL);
+  if (current_time == ((time_t)-1))
+    {
+      //logvalue(LOG_FILE, "Failure to obtain the current time\n");
+      return -1;
+    }
+  tmp = localtime(&current_time);
+  // [04/15/19 11:40AM] "[%F %T]"
+  if (strftime(MYTIME, sizeof(MYTIME), fmt, tmp) == 0)
+    {
+      //logvalue(LOG_FILE,"Failure to convert the current time\n");
+      return -1;
+    }
+  strcpy(tst,MYTIME);
+  return 0;
+}
+
+
+void logvalue(char *filename, char *message)
+{
+  /*scrive su filename il messaggio message*/
+  FILE *logfile;
+  char t[30];
+  ts(t,"[%F %T]");
+  //ts(t,"[%Y%m%d-%H%M%S]");
+  logfile=fopen(filename,"a");
+  if(!logfile) return;
+  fprintf(logfile,"%s %s",t,message);
+  fclose(logfile);
+}
 
 int pulsante(modbus_t *m,int bobina) {
   if ( modbus_write_bit(m,bobina,TRUE) != 1 ) {
@@ -26,25 +64,26 @@ int pulsante(modbus_t *m,int bobina) {
   return 0;
 }
 
-void logvalue(char *filename, char *message)
-{
-  /*scrive su filename il messaggio message*/
-  FILE *logfile;
-  logfile=fopen(filename,"a");
-  if(!logfile) return;
-  fprintf(logfile,"%s\n",message);
-  fclose(logfile);
-}
-
-
 void signal_handler(int sig)
 {
+  char t[20];
+  char newname[40];
+  int fd;
   switch(sig) {
   case SIGHUP:
-    logvalue(LOG_FILE,"ATT: Reset Modbus connection");
+    logvalue(LOG_FILE,"Log rotation....\n");
+    ts(t,"%Y%m%d-%H%M%S");
+    sprintf(newname,"cancello-%s.log",t);
+    logvalue(LOG_FILE,newname);
+    
+    rename(LOG_FILE,newname);
+    fd=open(LOG_FILE, O_RDONLY | O_WRONLY | O_CREAT,0644);
+
+    close(fd);
+    logvalue(LOG_FILE,"new log file after rotation\n");
     break;
   case SIGTERM:
-    logvalue(LOG_FILE,"terminate signal catched");
+    logvalue(LOG_FILE,"terminate signal catched\n");
     unlink(LOCK_FILE);
     exit(EX_OK);
     break;
@@ -85,6 +124,8 @@ void daemonize()
   signal(SIGTERM,signal_handler); /* catch kill signal */
 }
 
+
+
 int main (int argc, char ** argv) {
 
   modbus_t *mb;
@@ -98,24 +139,24 @@ int main (int argc, char ** argv) {
   mb_otb = modbus_new_tcp("192.168.1.11",PORT);
   if ( (modbus_connect(mb) == -1) || (modbus_connect(mb_otb) == -1))
     {
-      logvalue("ERRORE non riesco a connettermi con il PLC o OTB");
+      logvalue(LOG_FILE,"ERRORE non riesco a connettermi con il PLC o OTB\n");
       exit(1);
     }
 
   while (1) {
     if (modbus_read_registers(mb_otb, 0, 1, otb_in)<0) {    // leggo lo stato degli ingressi collegati al wireless button
-      logvalue(LOG_FILE,"Errore Lettura Registro OTB per Cancello");      
+      logvalue(LOG_FILE,"Errore Lettura Registro OTB per Cancello\n");      
     } else {
       //-------------------------------------------------------------------------------------
       if (read_single_state(otb_in[0],FARI_ESTERNI_IN_SOTTO)) {
-	logvalue(LOG_FILE,"APERTURA PARZIALE CANCELLO INGRESSO");
+	logvalue(LOG_FILE,"APERTURA PARZIALE CANCELLO INGRESSO\n");
 	//  pulsante(mb,APERTURA_PARZIALE)
 	pulsante(mb,CICALINO_AUTOCLAVE);
       }
       
       if (read_single_state(otb_in[0],FARI_ESTERNI_IN_SOPRA)) {
-	//-------------------------------------------------------------------------------------  
-	logvalue(LOG_FILE,"APERTURA TOTALE CANCELLO INGRESSO");
+	//-------------------------------------------------------------------------------------
+	logvalue(LOG_FILE,"APERTURA TOTALE CANCELLO INGRESSO\n");
 	//  pulsante(mb,APERTURA_TOTALE)
 	pulsante(mb,CICALINO_AUTOCLAVE);
 	//-------------------------------------------------------------------------------------  
