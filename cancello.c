@@ -53,12 +53,12 @@ void logvalue(char *filename, char *message)
 
 int pulsante(modbus_t *m,int bobina) {
   if ( modbus_write_bit(m,bobina,TRUE) != 1 ) {
-    printf("ERRORE DI SCRITTURA:PULSANTE ON");
+    logvalue(LOG_FILE,"ERRORE DI SCRITTURA:PULSANTE ON\n");
     return -1;
   }
   sleep(1);
   if ( modbus_write_bit(m,bobina,FALSE) != 1 ) {
-    printf("ERRORE DI SCRITTURA:PULSANTE OFF");
+    logvalue(LOG_FILE,"ERRORE DI SCRITTURA:PULSANTE OFF\n");
     return -1;
   }
   return 0;
@@ -68,13 +68,15 @@ void signal_handler(int sig)
 {
   char t[20];
   char newname[40];
+  char logmsg[100];
   int fd;
   switch(sig) {
   case SIGHUP:
-    logvalue(LOG_FILE,"Log rotation....\n");
+
     ts(t,"%Y%m%d-%H%M%S");
     sprintf(newname,"cancello-%s.log",t);
-    logvalue(LOG_FILE,newname);
+    sprintf(logmsg,"Log rotation....archived to %s\n",newname);
+    logvalue(LOG_FILE,logmsg);
     
     rename(LOG_FILE,newname);
     fd=open(LOG_FILE, O_RDONLY | O_WRONLY | O_CREAT,0644);
