@@ -78,7 +78,6 @@ void rotate() {
   rename(LOG_FILE,newname);
   fd=open(LOG_FILE, O_RDONLY | O_WRONLY | O_CREAT,0644);
   close(fd);
-
 }
 
 void signal_handler(int sig)
@@ -143,8 +142,10 @@ int main (int argc, char ** argv) {
   uint16_t otb_in[10];
   char errmsg[100];
   uint16_t numerr = 0;
+
   // unit16_t plc_in[10];
   // system("echo \"PRIMNA di daemon\" | /usr/bin/mutt -s \"PRIMA di daemon\" vittorio.giannini@windtre.it");
+ 
   daemonize();
 
   mb = modbus_new_tcp("192.168.1.157",PORT);
@@ -169,12 +170,12 @@ int main (int argc, char ** argv) {
     } else {
       //-------------------------------------------------------------------------------------
       // if (read_single_state(otb_in[0],FARI_ESTERNI_IN_SOTTO)) {
-      if (read_single_state(otb_in[0],OTB_IN8)) {
+      if (read_single_state((uint16_t)otb_in[0],OTB_IN8)) {
 	logvalue(LOG_FILE,"APERTURA PARZIALE CANCELLO INGRESSO\n");
 	pulsante(mb,APERTURA_PARZIALE);
       }
       
-      if (read_single_state(otb_in[0],OTB_IN9)) {
+      if (read_single_state((uint16_t)otb_in[0],OTB_IN9)) {
 	//-------------------------------------------------------------------------------------
 	logvalue(LOG_FILE,"APERTURA TOTALE CANCELLO INGRESSO\n");
 	pulsante(mb,APERTURA_TOTALE);
