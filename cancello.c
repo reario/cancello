@@ -64,34 +64,42 @@ int pulsante(modbus_t *m,int bobina) {
   return 0;
 }
 
-void signal_handler(int sig)
-{
+void rotate() {
+
   char t[20];
   char newname[40];
   char logmsg[100];
   int fd;
+
+  ts(t,"%Y%m%d-%H%M%S");
+  sprintf(newname,"cancello-%s.log",t);
+  sprintf(logmsg,"Log rotation....archived to %s\n",newname);
+  logvalue(LOG_FILE,logmsg);
+  rename(LOG_FILE,newname);
+  fd=open(LOG_FILE, O_RDONLY | O_WRONLY | O_CREAT,0644);
+  close(fd);
+
+}
+
+void signal_handler(int sig)
+{
   switch(sig) {
+
   case SIGHUP:
-
-    ts(t,"%Y%m%d-%H%M%S");
-    sprintf(newname,"cancello-%s.log",t);
-    sprintf(logmsg,"Log rotation....archived to %s\n",newname);
-    logvalue(LOG_FILE,logmsg);
-    
-    rename(LOG_FILE,newname);
-    fd=open(LOG_FILE, O_RDONLY | O_WRONLY | O_CREAT,0644);
-
-    close(fd);
+    // ----------------------------------
+    rotate();
     logvalue(LOG_FILE,"new log file after rotation\n");
     break;
+    // ---------------------------------
+
   case SIGTERM:
     logvalue(LOG_FILE,"terminate signal catched\n");
     unlink(LOCK_FILE);
     exit(EX_OK);
     break;
+
   }
 }
-
 
 void daemonize()
 {
@@ -109,10 +117,12 @@ void daemonize()
   // chdir(RUNNING_DIR); /* change running directory */
   lfp=open(LOCK_FILE,O_RDWR|O_CREAT,0640);
   if (lfp<0) exit(EX_OSERR); /* can not open */
+
   if (lockf(lfp,F_TLOCK,0)<0) {
     logvalue(LOG_FILE,"Cannot Start. There is another process running. exit");
     exit(EX_OK); /* can not lock */
   }
+
   /* first instance continues */
   snprintf(str,(size_t)10,"%d\n",getpid());
   write(lfp,str,strlen(str)); /* record pid to lockfile */
@@ -126,19 +136,20 @@ void daemonize()
   signal(SIGTERM,signal_handler); /* catch kill signal */
 }
 
-
-
 int main (int argc, char ** argv) {
 
   modbus_t *mb;
   modbus_t *mb_otb;
   uint16_t otb_in[10];
-  //unit16_t plc_in[10];
-
+  char errmsg[100];
+  uint16_t numerr = 0;
+  // unit16_t plc_in[10];
+  // system("echo \"PRIMNA di daemon\" | /usr/bin/mutt -s \"PRIMA di daemon\" vittorio.giannini@windtre.it");
   daemonize();
 
   mb = modbus_new_tcp("192.168.1.157",PORT);
   mb_otb = modbus_new_tcp("192.168.1.11",PORT);
+
   if ( (modbus_connect(mb) == -1) || (modbus_connect(mb_otb) == -1))
     {
       logvalue(LOG_FILE,"ERRORE non riesco a connettermi con il PLC o OTB\n");
@@ -146,28 +157,37 @@ int main (int argc, char ** argv) {
     }
 
   while (1) {
-    if (modbus_read_registers(mb_otb, 0, 1, otb_in)<0) {    // leggo lo stato degli ingressi collegati al wireless button
-      logvalue(LOG_FILE,"Errore Lettura Registro OTB per Cancello\n");      
+    if ( modbus_read_registers(mb_otb, 0, 1, otb_in)<0 ) {    // leggo lo stato degli ingressi collegati al wireless button
+      numerr++;
+      sprintf(errmsg,"ERRORE Lettura Registro OTB per Cancello EXITING [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+      logvalue(LOG_FILE,errmsg);      
+      if (numerr > 5) {
+	system("echo \"Errore di lettura nel registro OTB. Programma chiuso\" | /usr/bin/mutt -s \"Errore nella lettura del registro OTB\" vittorio.giannini@windtre.it");
+	exit(EXIT_FAILURE);
+      }
+
     } else {
       //-------------------------------------------------------------------------------------
-      if (read_single_state(otb_in[0],FARI_ESTERNI_IN_SOTTO)) {
+      // if (read_single_state(otb_in[0],FARI_ESTERNI_IN_SOTTO)) {
+      if (read_single_state(otb_in[0],OTB_IN8)) {
 	logvalue(LOG_FILE,"APERTURA PARZIALE CANCELLO INGRESSO\n");
-	//  pulsante(mb,APERTURA_PARZIALE)
-	pulsante(mb,CICALINO_AUTOCLAVE);
+	pulsante(mb,APERTURA_PARZIALE);
       }
       
-      if (read_single_state(otb_in[0],FARI_ESTERNI_IN_SOPRA)) {
+      if (read_single_state(otb_in[0],OTB_IN9)) {
 	//-------------------------------------------------------------------------------------
 	logvalue(LOG_FILE,"APERTURA TOTALE CANCELLO INGRESSO\n");
-	//  pulsante(mb,APERTURA_TOTALE)
-	pulsante(mb,CICALINO_AUTOCLAVE);
+	pulsante(mb,APERTURA_TOTALE);
+	//  pulsante(mb,CICALINO_AUTOCLAVE);
 	//-------------------------------------------------------------------------------------  
       }
+      numerr=0;
     } // else
-  }
+  } // while
   
   modbus_close(mb);
   modbus_free(mb);
+
   modbus_close(mb_otb);
   modbus_free(mb_otb);
   return 0;
