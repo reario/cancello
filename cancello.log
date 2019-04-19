@@ -1,2 +1,7 @@
-[2019-04-15 19:03:10] new log file after rotation
-[2019-04-15 19:05:04] terminate signal catched
+[2019-04-18 15:14:55] new log file after rotation
+[2019-04-18 19:47:01] Cannot Start. There is another process running. exit
+[2019-04-18 20:03:07] terminate signal catched
+[2019-04-18 20:05:31] terminate signal catched
+[2019-04-18 20:05:31] 	Chiudo la connessione con PLC e OTB
+[2019-04-18 20:05:31] 	Libero la memoria dalle strutture create
+[2019-04-18 20:05:31] Fine.
