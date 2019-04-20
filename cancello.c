@@ -14,6 +14,9 @@
 #include <modbus.h>
 #include "gh.h"
 
+modbus_t *mb;
+modbus_t *mb_otb;
+
 int ts(char * tst, char * fmt)
 {
   time_t current_time;
@@ -37,7 +40,6 @@ int ts(char * tst, char * fmt)
   return 0;
 }
 
-
 void logvalue(char *filename, char *message)
 {
   /*scrive su filename il messaggio message*/
@@ -52,15 +54,25 @@ void logvalue(char *filename, char *message)
 }
 
 int pulsante(modbus_t *m,int bobina) {
+
+  char errmsg[100];
+
   if ( modbus_write_bit(m,bobina,TRUE) != 1 ) {
-    logvalue(LOG_FILE,"ERRORE DI SCRITTURA:PULSANTE ON\n");
+    // The modbus_write_bit() function shall return 1 if successful. 
+    // Otherwise it shall return -1 and set errno.
+    sprintf(errmsg,"ERRORE DI SCRITTURA:PULSANTE ON %s\n",modbus_strerror(errno));
+    logvalue(LOG_FILE,errmsg);
     return -1;
   }
+
   sleep(1);
+
   if ( modbus_write_bit(m,bobina,FALSE) != 1 ) {
-    logvalue(LOG_FILE,"ERRORE DI SCRITTURA:PULSANTE OFF\n");
+    sprintf(errmsg,"ERRORE DI SCRITTURA:PULSANTE OFF %s\n",modbus_strerror(errno));
+    logvalue(LOG_FILE,errmsg);
     return -1;
   }
+
   return 0;
 }
 
@@ -90,10 +102,18 @@ void signal_handler(int sig)
     logvalue(LOG_FILE,"new log file after rotation\n");
     break;
     // ---------------------------------
-
+    
   case SIGTERM:
     logvalue(LOG_FILE,"terminate signal catched\n");
     unlink(LOCK_FILE);
+    logvalue(LOG_FILE,"\tChiudo la connessione con PLC e OTB\n");
+    modbus_close(mb);
+    modbus_free(mb);
+    logvalue(LOG_FILE,"\tLibero la memoria dalle strutture create\n");
+    modbus_close(mb_otb);
+    modbus_free(mb_otb);
+    logvalue(LOG_FILE,"Fine.\n");
+    logvalue(LOG_FILE,"--------------------------------------------------------------\n");      
     exit(EX_OK);
     break;
 
@@ -118,7 +138,7 @@ void daemonize()
   if (lfp<0) exit(EX_OSERR); /* can not open */
 
   if (lockf(lfp,F_TLOCK,0)<0) {
-    logvalue(LOG_FILE,"Cannot Start. There is another process running. exit");
+    logvalue(LOG_FILE,"Cannot Start. There is another process running. exit\n");
     exit(EX_OK); /* can not lock */
   }
 
@@ -137,8 +157,6 @@ void daemonize()
 
 int main (int argc, char ** argv) {
 
-  modbus_t *mb;
-  modbus_t *mb_otb;
   uint16_t otb_in[10];
   char errmsg[100];
   uint16_t numerr = 0;
@@ -153,44 +171,45 @@ int main (int argc, char ** argv) {
 
   if ( (modbus_connect(mb) == -1) || (modbus_connect(mb_otb) == -1))
     {
-      logvalue(LOG_FILE,"ERRORE non riesco a connettermi con il PLC o OTB\n");
-      exit(1);
+      sprintf(errmsg,"ERRORE non riesco a connettermi con il PLC o OTB %s\n",modbus_strerror(errno));
+      logvalue(LOG_FILE,errmsg);
+      exit(EXIT_FAILURE);
     }
 
   while (1) {
-    if ( modbus_read_registers(mb_otb, 0, 1, otb_in)<0 ) {    // leggo lo stato degli ingressi collegati al wireless button
+    if ( modbus_read_registers(mb_otb, 0, 1, otb_in) < 0 ) {    // leggo lo stato degli ingressi collegati al wireless button
       numerr++;
-      sprintf(errmsg,"ERRORE Lettura Registro OTB per Cancello EXITING [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+      
+      sprintf(errmsg,"\tERRORE Lettura Registro OTB per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+      sleep(1);
       logvalue(LOG_FILE,errmsg);      
-      if (numerr > 5) {
+
+      if (numerr > 20) {
+	logvalue(LOG_FILE,"-----------------------------------------------------------------------\n");      
 	system("echo \"Errore di lettura nel registro OTB. Programma chiuso\" | /usr/bin/mutt -s \"Errore nella lettura del registro OTB\" vittorio.giannini@windtre.it");
 	exit(EXIT_FAILURE);
       }
-
     } else {
       //-------------------------------------------------------------------------------------
-      // if (read_single_state(otb_in[0],FARI_ESTERNI_IN_SOTTO)) {
       if (read_single_state((uint16_t)otb_in[0],OTB_IN8)) {
 	logvalue(LOG_FILE,"APERTURA PARZIALE CANCELLO INGRESSO\n");
-	pulsante(mb,APERTURA_PARZIALE);
+	if (pulsante(mb,APERTURA_PARZIALE)<0) {
+	  logvalue(LOG_FILE,"\tproblemi con pulsante\n");
+	}
+
       }
-      
+      //-------------------------------------------------------------------------------------      
       if (read_single_state((uint16_t)otb_in[0],OTB_IN9)) {
-	//-------------------------------------------------------------------------------------
 	logvalue(LOG_FILE,"APERTURA TOTALE CANCELLO INGRESSO\n");
-	pulsante(mb,APERTURA_TOTALE);
-	//  pulsante(mb,CICALINO_AUTOCLAVE);
-	//-------------------------------------------------------------------------------------  
+	if (pulsante(mb,APERTURA_TOTALE)<0) {
+	  logvalue(LOG_FILE,"\tproblemi con pulsante\n");
+	}
       }
+      //-------------------------------------------------------------------------------------  
       numerr=0;
     } // else
   } // while
-  
-  modbus_close(mb);
-  modbus_free(mb);
 
-  modbus_close(mb_otb);
-  modbus_free(mb_otb);
   return 0;
 
 }
