@@ -185,12 +185,12 @@ int main (int argc, char ** argv) {
     if ( modbus_read_registers(mb_otb, 0, 1, otb_in) < 0 ) {    // leggo lo stato degli ingressi collegati al wireless button
       numerr++;
       
-      sprintf(errmsg,"\tERRORE Lettura Registro OTB per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+      sprintf(errmsg,"ERRORE Lettura Registro OTB per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
       sleep(2);
       logvalue(LOG_FILE,errmsg);      
       if (numerr > 20) {
 	system("echo \"Errore di lettura nel registro OTB. Programma chiuso\" | /usr/bin/mutt -s \"Errore nella lettura del registro OTB\" vittorio.giannini@windtre.it");
-	myCleanExit(errmsg);
+	myCleanExit("Too many errors while readin OTG registers\n");
 	exit(EXIT_FAILURE);
       }
     } else {
