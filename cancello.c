@@ -157,6 +157,7 @@ void daemonize()
   signal(SIGPIPE,SIG_IGN);
   signal(SIGHUP,signal_handler); /* catch hangup signal */
   signal(SIGTERM,signal_handler); /* catch kill signal */
+  logvalue(LOG_FILE,"************* START *****************\n");
 }
 
 int main (int argc, char ** argv) {
