@@ -92,6 +92,20 @@ void rotate() {
   close(fd);
 }
 
+void myCleanExit(char * from) {
+  logvalue(LOG_FILE,from);
+  unlink(LOCK_FILE);
+  logvalue(LOG_FILE,"\tChiudo la connessione con PLC e OTB\n");
+  modbus_close(mb);
+  modbus_free(mb);
+  logvalue(LOG_FILE,"\tLibero la memoria dalle strutture create\n");
+  modbus_close(mb_otb);
+  modbus_free(mb_otb);
+  logvalue(LOG_FILE,"Fine.\n");
+  logvalue(LOG_FILE,"--------------------------------------------------------------\n");      
+  
+}
+
 void signal_handler(int sig)
 {
   switch(sig) {
@@ -104,19 +118,9 @@ void signal_handler(int sig)
     // ---------------------------------
     
   case SIGTERM:
-    logvalue(LOG_FILE,"terminate signal catched\n");
-    unlink(LOCK_FILE);
-    logvalue(LOG_FILE,"\tChiudo la connessione con PLC e OTB\n");
-    modbus_close(mb);
-    modbus_free(mb);
-    logvalue(LOG_FILE,"\tLibero la memoria dalle strutture create\n");
-    modbus_close(mb_otb);
-    modbus_free(mb_otb);
-    logvalue(LOG_FILE,"Fine.\n");
-    logvalue(LOG_FILE,"--------------------------------------------------------------\n");      
+    myCleanExit("Terminate signal catched\n");
     exit(EX_OK);
     break;
-
   }
 }
 
@@ -172,7 +176,8 @@ int main (int argc, char ** argv) {
   if ( (modbus_connect(mb) == -1) || (modbus_connect(mb_otb) == -1))
     {
       sprintf(errmsg,"ERRORE non riesco a connettermi con il PLC o OTB %s\n",modbus_strerror(errno));
-      logvalue(LOG_FILE,errmsg);
+      //logvalue(LOG_FILE,errmsg);
+      myCleanExit(errmsg);
       exit(EXIT_FAILURE);
     }
 
@@ -181,12 +186,11 @@ int main (int argc, char ** argv) {
       numerr++;
       
       sprintf(errmsg,"\tERRORE Lettura Registro OTB per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
-      sleep(1);
+      sleep(2);
       logvalue(LOG_FILE,errmsg);      
-
       if (numerr > 20) {
-	logvalue(LOG_FILE,"-----------------------------------------------------------------------\n");      
 	system("echo \"Errore di lettura nel registro OTB. Programma chiuso\" | /usr/bin/mutt -s \"Errore nella lettura del registro OTB\" vittorio.giannini@windtre.it");
+	myCleanExit(errmsg);
 	exit(EXIT_FAILURE);
       }
     } else {
