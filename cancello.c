@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/time.h>
 #include <time.h>
 #include <modbus.h>
 #include "gh.h"
@@ -102,7 +103,7 @@ void myCleanExit(char * from) {
   modbus_close(mb_otb);
   modbus_free(mb_otb);
   logvalue(LOG_FILE,"Fine.\n");
-  logvalue(LOG_FILE,"--------------------------------------------------------------\n");      
+  logvalue(LOG_FILE,"****************** END **********************\n");
   
 }
 
@@ -157,7 +158,7 @@ void daemonize()
   signal(SIGPIPE,SIG_IGN);
   signal(SIGHUP,signal_handler); /* catch hangup signal */
   signal(SIGTERM,signal_handler); /* catch kill signal */
-  logvalue(LOG_FILE,"************* START *****************\n");
+  logvalue(LOG_FILE,"****************** START **********************\n");
 }
 
 int main (int argc, char ** argv) {
@@ -165,6 +166,7 @@ int main (int argc, char ** argv) {
   uint16_t otb_in[10];
   char errmsg[100];
   uint16_t numerr = 0;
+  struct timeval response_timeout;
 
   // unit16_t plc_in[10];
   // system("echo \"PRIMNA di daemon\" | /usr/bin/mutt -s \"PRIMA di daemon\" vittorio.giannini@windtre.it");
@@ -174,9 +176,24 @@ int main (int argc, char ** argv) {
   mb = modbus_new_tcp("192.168.1.157",PORT);
   mb_otb = modbus_new_tcp("192.168.1.11",PORT);
 
-  if ( (modbus_connect(mb) == -1) || (modbus_connect(mb_otb) == -1))
+  /* Define a new timeout! */
+  response_timeout.tv_sec = 10;
+  response_timeout.tv_usec = 0;
+
+  modbus_set_response_timeout(mb,     &response_timeout); // 5 seconds 0 usec
+  modbus_set_response_timeout(mb_otb, &response_timeout); // 5 seconds 0 usec
+
+  if ( (modbus_connect(mb) == -1 ))
     {
-      sprintf(errmsg,"ERRORE non riesco a connettermi con il PLC o OTB %s\n",modbus_strerror(errno));
+      sprintf(errmsg,"ERRORE non riesco a connettermi con il PLC %s\n",modbus_strerror(errno));
+      //logvalue(LOG_FILE,errmsg);
+      myCleanExit(errmsg);
+      exit(EXIT_FAILURE);
+    }
+
+  if ( (modbus_connect(mb_otb) == -1))
+    {
+      sprintf(errmsg,"ERRORE non riesco a connettermi con l'OTB %s\n",modbus_strerror(errno));
       //logvalue(LOG_FILE,errmsg);
       myCleanExit(errmsg);
       exit(EXIT_FAILURE);
@@ -184,14 +201,33 @@ int main (int argc, char ** argv) {
 
   while (1) {
     if ( modbus_read_registers(mb_otb, 0, 1, otb_in) < 0 ) {    // leggo lo stato degli ingressi collegati al wireless button
+
       numerr++;
-      
       sprintf(errmsg,"ERRORE Lettura Registro OTB per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
-      sleep(2);
-      logvalue(LOG_FILE,errmsg);      
-      if (numerr > 20) {
+      logvalue(LOG_FILE,errmsg);
+
+      modbus_close(mb_otb);      
+      modbus_free(mb_otb);
+      mb_otb = modbus_new_tcp("192.168.1.11",PORT);
+      response_timeout.tv_sec = 10;
+      response_timeout.tv_usec = 0;
+      modbus_set_response_timeout(mb_otb, &response_timeout); // 10 seconds 0 usec
+
+      /* while (modbus_connect(mb_otb)==0 || numerr<=15) { */
+      /* 	sprintf(errmsg,"\tERRORE riconnessione OTB [%s]. Num err [%i]\n",modbus_strerror(errno),numerr); */
+      /* 	logvalue(LOG_FILE,errmsg); */
+      /* 	sleep(1); */
+      /* 	numerr++; */
+      /* } */
+    
+      if (modbus_connect(mb_otb)==-1) {
+	sprintf(errmsg,"\tERRORE riconnessione OTB [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+	logvalue(LOG_FILE,errmsg);
+      }
+      
+      if (numerr > 15) {
 	system("echo \"Errore di lettura nel registro OTB. Programma chiuso\" | /usr/bin/mutt -s \"Errore nella lettura del registro OTB\" vittorio.giannini@windtre.it");
-	myCleanExit("Too many errors while readin OTG registers\n");
+	myCleanExit("Too many errors while readin OTB registers\n");
 	exit(EXIT_FAILURE);
       }
     } else {
@@ -213,6 +249,7 @@ int main (int argc, char ** argv) {
       //-------------------------------------------------------------------------------------  
       numerr=0;
     } // else
+    sleep(0.5);
   } // while
 
   return 0;
