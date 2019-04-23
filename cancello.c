@@ -193,7 +193,7 @@ int main (int argc, char ** argv) {
 
   if ( (modbus_connect(mb_otb) == -1))
     {
-      sprintf(errmsg,"ERRORE non riesco a connettermi con l'OTB %s\n",modbus_strerror(errno));
+      sprintf(errmsg,"ERRORE non riesco a connettermi con l'OTB. Premature exit [%s]\n",modbus_strerror(errno));
       //logvalue(LOG_FILE,errmsg);
       myCleanExit(errmsg);
       exit(EXIT_FAILURE);

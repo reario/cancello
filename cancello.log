@@ -5,3 +5,124 @@
 [2019-04-22 09:25:05] Fine.
 [2019-04-22 09:25:05] ****************** END **********************
 [2019-04-22 09:25:12] ****************** START **********************
+[2019-04-23 02:24:48] ERRORE Lettura Registro OTB per Cancello [Connection timed out]. Num err [1]
+[2019-04-23 02:24:58] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [1]
+[2019-04-23 02:24:58] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [2]
+[2019-04-23 02:25:08] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [2]
+[2019-04-23 02:25:08] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [3]
+[2019-04-23 02:25:18] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [3]
+[2019-04-23 02:25:18] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [4]
+[2019-04-23 02:25:28] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [4]
+[2019-04-23 02:25:28] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [5]
+[2019-04-23 02:25:33] 	ERRORE riconnessione OTB [Connection refused]. Num err [5]
+[2019-04-23 02:25:33] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [6]
+[2019-04-23 02:25:36] 	ERRORE riconnessione OTB [Connection refused]. Num err [6]
+[2019-04-23 02:25:36] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [7]
+[2019-04-23 02:25:39] 	ERRORE riconnessione OTB [Connection refused]. Num err [7]
+[2019-04-23 02:25:39] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [8]
+[2019-04-23 02:25:42] 	ERRORE riconnessione OTB [Connection refused]. Num err [8]
+[2019-04-23 02:25:42] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [9]
+[2019-04-23 02:25:45] 	ERRORE riconnessione OTB [Connection refused]. Num err [9]
+[2019-04-23 02:25:45] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [10]
+[2019-04-23 02:25:48] 	ERRORE riconnessione OTB [Connection refused]. Num err [10]
+[2019-04-23 02:25:48] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [11]
+[2019-04-23 02:25:51] 	ERRORE riconnessione OTB [Connection refused]. Num err [11]
+[2019-04-23 02:25:51] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [12]
+[2019-04-23 02:25:54] 	ERRORE riconnessione OTB [Connection refused]. Num err [12]
+[2019-04-23 02:25:54] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [13]
+[2019-04-23 02:25:57] 	ERRORE riconnessione OTB [Connection refused]. Num err [13]
+[2019-04-23 02:25:57] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [14]
+[2019-04-23 02:26:00] 	ERRORE riconnessione OTB [Connection refused]. Num err [14]
+[2019-04-23 02:26:00] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [15]
+[2019-04-23 02:26:03] 	ERRORE riconnessione OTB [Connection refused]. Num err [15]
+[2019-04-23 02:26:03] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [16]
+[2019-04-23 02:26:06] 	ERRORE riconnessione OTB [Connection refused]. Num err [16]
+[2019-04-23 02:26:07] Too many errors while readin OTB registers
+[2019-04-23 02:26:07] 	Chiudo la connessione con PLC e OTB
+[2019-04-23 02:26:07] 	Libero la memoria dalle strutture create
+[2019-04-23 02:26:07] Fine.
+[2019-04-23 02:26:07] ****************** END **********************
+[2019-04-23 02:46:21] ****************** START **********************
+[2019-04-23 09:13:50] ERRORE Lettura Registro OTB per Cancello [Connection timed out]. Num err [1]
+[2019-04-23 09:47:23] ERRORE Lettura Registro OTB per Cancello [Connection timed out]. Num err [1]
+[2019-04-23 09:47:33] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [1]
+[2019-04-23 09:47:33] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [2]
+[2019-04-23 09:47:43] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [2]
+[2019-04-23 09:47:43] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [3]
+[2019-04-23 09:47:53] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [3]
+[2019-04-23 09:47:53] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [4]
+[2019-04-23 09:48:03] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [4]
+[2019-04-23 09:48:03] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [5]
+[2019-04-23 09:48:13] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [5]
+[2019-04-23 09:48:13] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [6]
+[2019-04-23 09:48:23] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [6]
+[2019-04-23 09:48:23] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [7]
+[2019-04-23 09:48:33] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [7]
+[2019-04-23 09:48:33] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [8]
+[2019-04-23 09:48:43] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [8]
+[2019-04-23 09:48:43] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [9]
+[2019-04-23 09:48:53] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [9]
+[2019-04-23 09:48:53] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [10]
+[2019-04-23 09:49:03] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [10]
+[2019-04-23 09:49:03] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [11]
+[2019-04-23 09:49:13] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [11]
+[2019-04-23 09:49:13] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [12]
+[2019-04-23 09:49:23] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [12]
+[2019-04-23 09:49:23] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [13]
+[2019-04-23 09:49:33] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [13]
+[2019-04-23 09:49:33] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [14]
+[2019-04-23 09:49:43] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [14]
+[2019-04-23 09:49:43] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [15]
+[2019-04-23 09:49:53] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [15]
+[2019-04-23 09:49:53] ERRORE Lettura Registro OTB per Cancello [Bad file descriptor]. Num err [16]
+[2019-04-23 09:50:03] 	ERRORE riconnessione OTB [Operation now in progress]. Num err [16]
+[2019-04-23 09:50:03] Too many errors while readin OTB registers
+[2019-04-23 09:50:03] 	Chiudo la connessione con PLC e OTB
+[2019-04-23 09:50:03] 	Libero la memoria dalle strutture create
+[2019-04-23 09:50:03] Fine.
+[2019-04-23 09:50:03] ****************** END **********************
+[2019-04-23 09:53:14] ****************** START **********************
+[2019-04-23 09:53:24] ERRORE non riesco a connettermi con l'OTB Operation now in progress
+[2019-04-23 09:53:24] 	Chiudo la connessione con PLC e OTB
+[2019-04-23 09:53:24] 	Libero la memoria dalle strutture create
+[2019-04-23 09:53:24] Fine.
+[2019-04-23 09:53:24] ****************** END **********************
+[2019-04-23 10:09:25] ****************** START **********************
+[2019-04-23 10:09:35] ERRORE non riesco a connettermi con l'OTB Operation now in progress
+[2019-04-23 10:09:35] 	Chiudo la connessione con PLC e OTB
+[2019-04-23 10:09:35] 	Libero la memoria dalle strutture create
+[2019-04-23 10:09:35] Fine.
+[2019-04-23 10:09:35] ****************** END **********************
+[2019-04-23 10:16:07] ****************** START **********************
+[2019-04-23 10:16:17] ERRORE non riesco a connettermi con l'OTB. Premature exit [Operation now in progress]
+[2019-04-23 10:16:17] 	Chiudo la connessione con PLC e OTB
+[2019-04-23 10:16:17] 	Libero la memoria dalle strutture create
+[2019-04-23 10:16:17] Fine.
+[2019-04-23 10:16:17] ****************** END **********************
+[2019-04-23 10:28:00] ****************** START **********************
+[2019-04-23 10:28:10] ERRORE non riesco a connettermi con l'OTB. Premature exit [Operation now in progress]
+[2019-04-23 10:28:10] 	Chiudo la connessione con PLC e OTB
+[2019-04-23 10:28:10] 	Libero la memoria dalle strutture create
+[2019-04-23 10:28:10] Fine.
+[2019-04-23 10:28:10] ****************** END **********************
+[2019-04-23 10:33:15] ****************** START **********************
+[2019-04-23 10:33:25] ERRORE non riesco a connettermi con l'OTB. Premature exit [Operation now in progress]
+[2019-04-23 10:33:25] 	Chiudo la connessione con PLC e OTB
+[2019-04-23 10:33:25] 	Libero la memoria dalle strutture create
+[2019-04-23 10:33:25] Fine.
+[2019-04-23 10:33:25] ****************** END **********************
+[2019-04-23 10:34:13] ****************** START **********************
+[2019-04-23 10:34:23] ERRORE non riesco a connettermi con l'OTB. Premature exit [Operation now in progress]
+[2019-04-23 10:34:23] 	Chiudo la connessione con PLC e OTB
+[2019-04-23 10:34:23] 	Libero la memoria dalle strutture create
+[2019-04-23 10:34:23] Fine.
+[2019-04-23 10:34:23] ****************** END **********************
+[2019-04-23 10:36:54] ****************** START **********************
+[2019-04-23 10:37:04] ERRORE non riesco a connettermi con l'OTB. Premature exit [Operation now in progress]
+[2019-04-23 10:37:04] 	Chiudo la connessione con PLC e OTB
+[2019-04-23 10:37:04] 	Libero la memoria dalle strutture create
+[2019-04-23 10:37:04] Fine.
+[2019-04-23 10:37:04] ****************** END **********************
+[2019-04-23 11:31:50] ****************** START READ FROM PC **********************
+[2019-04-23 11:35:53] APERTURA PARZIALE CANCELLO INGRESSO
+[2019-04-23 11:36:35] APERTURA TOTALE CANCELLO INGRESSO
