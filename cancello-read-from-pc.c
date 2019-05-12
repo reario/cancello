@@ -18,6 +18,9 @@
 modbus_t *mb;
 modbus_t *mb_otb_pc;
 
+
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+
 int ts(char * tst, char * fmt)
 {
   time_t current_time;
@@ -168,6 +171,11 @@ int main (int argc, char ** argv) {
   uint16_t numerr = 0;
   struct timeval response_timeout;
 
+  enum comando {IAT=512,IAP=256};
+
+
+
+
   // unit16_t plc_in[10];
   // system("echo \"PRIMNA di daemon\" | /usr/bin/mutt -s \"PRIMA di daemon\" vittorio.giannini@windtre.it");
  
@@ -193,13 +201,16 @@ int main (int argc, char ** argv) {
 
   if ( (modbus_connect(mb_otb_pc) == -1))
     {
-      sprintf(errmsg,"ERRORE non riesco a connettermi con l'OTB PC. Premature exit (il processo event è attivo?) [%s]\n",modbus_strerror(errno));
+      sprintf(errmsg,"ERRORE non riesco a connettermi con l'OTB PC. Premature exit (il processo \"event\" è attivo?) [%s]\n",modbus_strerror(errno));
       //logvalue(LOG_FILE,errmsg);
       myCleanExit(errmsg);
       exit(EXIT_FAILURE);
     }
 
   while (1) {
+    /*
+      registro 74 sul PC contiene gli ingressi dell'OTB che sono letti dal PLC (192.168.1.157) e quindi trasferiti sul PC
+     */
     if ( modbus_read_registers(mb_otb_pc, 74, 1, otb_pc_in) < 0 ) {    // leggo lo stato degli ingressi collegati al wireless button
 
       numerr++;
@@ -212,13 +223,6 @@ int main (int argc, char ** argv) {
       response_timeout.tv_sec = 10;
       response_timeout.tv_usec = 0;
       modbus_set_response_timeout(mb_otb_pc, &response_timeout); // 10 seconds 0 usec
-
-      /* while (modbus_connect(mb_otb)==0 || numerr<=15) { */
-      /* 	sprintf(errmsg,"\tERRORE riconnessione OTB [%s]. Num err [%i]\n",modbus_strerror(errno),numerr); */
-      /* 	logvalue(LOG_FILE,errmsg); */
-      /* 	sleep(1); */
-      /* 	numerr++; */
-      /* } */
     
       if (modbus_connect(mb_otb_pc)==-1) {
 	sprintf(errmsg,"\tERRORE riconnessione OTB PC [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
@@ -231,29 +235,59 @@ int main (int argc, char ** argv) {
 	exit(EXIT_FAILURE);
       }
     } else {
+      /*
+	..........
+	[2019-04-25 11:00:06] OTB_IN8=0   - OTB_IN9=0
+	[2019-04-25 11:00:06] OTB_IN8=256 - OTB_IN9=0
+	[2019-04-25 11:00:06]    TEST CASE: APERTURA PARZIALE CANCELLO INGRESSO
+	...........
+	[2019-04-25 11:00:10] OTB_IN8=0 - OTB_IN9=0
+	[2019-04-25 11:00:10] OTB_IN8=0 - OTB_IN9=512
+	[2019-04-25 11:00:10]    TEST CASE: APERTURA TOTALE CANCELLO INGRESSO
+	...........
+       */
+
+      
+
+
+#ifdef PLUTO      
+      sprintf(errmsg,"OTB_IN8=%i - OTB_IN9=%i\n",(uint16_t)CHECK_BIT(otb_pc_in[0],OTB_IN8),(uint16_t)CHECK_BIT(otb_pc_in[0],OTB_IN9));
+      logvalue(LOG_FILE,errmsg);
+      switch (otb_pc_in[0] & (3<<8)) {
+      case 512: // bit 9 = OTB_IN9
+	logvalue(LOG_FILE,"\t TEST CASE: APERTURA TOTALE CANCELLO INGRESSO\n");
+	break;
+      case 256: // bit 8 = OTB_IN8
+	logvalue(LOG_FILE,"\t TEST CASE: APERTURA PARZIALE CANCELLO INGRESSO\n");
+	break;
+      }
+#endif      
+
+#ifdef PIPPO
       //-------------------------------------------------------------------------------------
-      if (read_single_state((uint16_t)otb_pc_in[0],OTB_IN8)) {
+      if ( CHECK_BIT(otb_pc_in[0],OTB_IN8) ) {
+	// (read_single_state((uint16_t)otb_pc_in[0],OTB_IN8)) {
 	logvalue(LOG_FILE,"APERTURA PARZIALE CANCELLO INGRESSO\n");
 	if (pulsante(mb,APERTURA_PARZIALE)<0) {
 	  logvalue(LOG_FILE,"\tproblemi con pulsante\n");
 	}
-
       }
       //-------------------------------------------------------------------------------------      
-      if (read_single_state((uint16_t)otb_pc_in[0],OTB_IN9)) {
+      if ( CHECK_BIT(otb_pc_in[0],OTB_IN9) ) {
+	// (read_single_state((uint16_t)otb_pc_in[0],OTB_IN9)) {
 	logvalue(LOG_FILE,"APERTURA TOTALE CANCELLO INGRESSO\n");
 	if (pulsante(mb,APERTURA_TOTALE)<0) {
 	  logvalue(LOG_FILE,"\tproblemi con pulsante\n");
 	}
       }
       //-------------------------------------------------------------------------------------  
+#endif
+
       numerr=0;
     } // else
-    sleep(0.5);
+    usleep(250000); // pausa di 0.5 secondi
   } // while
 
   return 0;
 
 }
-
-

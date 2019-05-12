@@ -181,7 +181,7 @@ struct item input[]={ {' ', "Autoclave"},
 
 void usage();
 uint16_t read_state(uint16_t reg, uint16_t q);
-char* read_single_state(uint16_t reg, uint16_t q);
+uint16_t read_single_state(uint16_t reg, uint16_t q);
 uint16_t set_state(uint16_t reg, uint16_t q);
 uint16_t reset_state(uint16_t reg, uint16_t q);
 uint16_t invert_state(uint16_t reg, uint16_t q);

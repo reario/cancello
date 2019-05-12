@@ -16,7 +16,9 @@
 #include "gh.h"
 
 modbus_t *mb;
-modbus_t *mb_otb;
+modbus_t *mb_zbrn1;
+
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
 int ts(char * tst, char * fmt)
 {
@@ -100,8 +102,8 @@ void myCleanExit(char * from) {
   modbus_close(mb);
   modbus_free(mb);
   logvalue(LOG_FILE,"\tLibero la memoria dalle strutture create\n");
-  modbus_close(mb_otb);
-  modbus_free(mb_otb);
+  modbus_close(mb_zbrn1);
+  modbus_free(mb_zbrn1);
   logvalue(LOG_FILE,"Fine.\n");
   logvalue(LOG_FILE,"****************** END **********************\n");
   
@@ -163,7 +165,7 @@ void daemonize()
 
 int main (int argc, char ** argv) {
 
-  uint16_t otb_in[10];
+  uint16_t otb_in[1];
   char errmsg[100];
   uint16_t numerr = 0;
   struct timeval response_timeout;
@@ -174,14 +176,14 @@ int main (int argc, char ** argv) {
   daemonize();
 
   mb = modbus_new_tcp("192.168.1.157",PORT);
-  mb_otb = modbus_new_tcp("192.168.1.11",PORT);
+  mb_zbrn1 = modbus_new_tcp("192.168.1.160",PORT);
 
   /* Define a new timeout! */
-  response_timeout.tv_sec = 10;
+  response_timeout.tv_sec = 4;
   response_timeout.tv_usec = 0;
 
-  modbus_set_response_timeout(mb,     &response_timeout); // 5 seconds 0 usec
-  modbus_set_response_timeout(mb_otb, &response_timeout); // 5 seconds 0 usec
+  modbus_set_response_timeout(mb,     &response_timeout); // 4 seconds 0 usec
+  modbus_set_response_timeout(mb_zbrn1, &response_timeout); // 4 seconds 0 usec
 
   if ( (modbus_connect(mb) == -1 ))
     {
@@ -191,37 +193,30 @@ int main (int argc, char ** argv) {
       exit(EXIT_FAILURE);
     }
 
-  if ( (modbus_connect(mb_otb) == -1))
+  if ( (modbus_connect(mb_zbrn1) == -1))
     {
-      sprintf(errmsg,"ERRORE non riesco a connettermi con l'OTB. Premature exit [%s]\n",modbus_strerror(errno));
+      sprintf(errmsg,"ERRORE non riesco a connettermi con ZBRN1. Premature exit [%s]\n",modbus_strerror(errno));
       //logvalue(LOG_FILE,errmsg);
       myCleanExit(errmsg);
       exit(EXIT_FAILURE);
     }
 
   while (1) {
-    if ( modbus_read_registers(mb_otb, 0, 1, otb_in) < 0 ) {    // leggo lo stato degli ingressi collegati al wireless button
+    if ( modbus_read_registers(mb_zbrn1, 0, 1, otb_in) < 0 ) {    // leggo lo stato degli ingressi collegati al wireless button
 
       numerr++;
-      sprintf(errmsg,"ERRORE Lettura Registro OTB per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+      sprintf(errmsg,"ERRORE Lettura Registro ZBRN1 per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
       logvalue(LOG_FILE,errmsg);
 
-      modbus_close(mb_otb);      
-      modbus_free(mb_otb);
-      mb_otb = modbus_new_tcp("192.168.1.11",PORT);
-      response_timeout.tv_sec = 10;
+      modbus_close(mb_zbrn1);      
+      modbus_free(mb_zbrn1);
+      mb_zbrn1 = modbus_new_tcp("192.168.1.160",PORT);
+      response_timeout.tv_sec = 4;
       response_timeout.tv_usec = 0;
-      modbus_set_response_timeout(mb_otb, &response_timeout); // 10 seconds 0 usec
-
-      /* while (modbus_connect(mb_otb)==0 || numerr<=15) { */
-      /* 	sprintf(errmsg,"\tERRORE riconnessione OTB [%s]. Num err [%i]\n",modbus_strerror(errno),numerr); */
-      /* 	logvalue(LOG_FILE,errmsg); */
-      /* 	sleep(1); */
-      /* 	numerr++; */
-      /* } */
+      modbus_set_response_timeout(mb_zbrn1, &response_timeout); // 10 seconds 0 usec
     
-      if (modbus_connect(mb_otb)==-1) {
-	sprintf(errmsg,"\tERRORE riconnessione OTB [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+      if (modbus_connect(mb_zbrn1)==-1) {
+	sprintf(errmsg,"\tERRORE riconnessione ZBRN1 [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
 	logvalue(LOG_FILE,errmsg);
       }
       
@@ -232,15 +227,16 @@ int main (int argc, char ** argv) {
       }
     } else {
       //-------------------------------------------------------------------------------------
-      if (read_single_state((uint16_t)otb_in[0],OTB_IN8)) {
+      if ( CHECK_BIT(otb_in[0],0) ) { 
 	logvalue(LOG_FILE,"APERTURA PARZIALE CANCELLO INGRESSO\n");
 	if (pulsante(mb,APERTURA_PARZIALE)<0) {
 	  logvalue(LOG_FILE,"\tproblemi con pulsante\n");
 	}
-
       }
       //-------------------------------------------------------------------------------------      
-      if (read_single_state((uint16_t)otb_in[0],OTB_IN9)) {
+      if ( CHECK_BIT(otb_in[0],1) ) { 
+	// (read_single_state((uint16_t)otb_in[0],OTB_IN9)) 
+	
 	logvalue(LOG_FILE,"APERTURA TOTALE CANCELLO INGRESSO\n");
 	if (pulsante(mb,APERTURA_TOTALE)<0) {
 	  logvalue(LOG_FILE,"\tproblemi con pulsante\n");
@@ -249,7 +245,7 @@ int main (int argc, char ** argv) {
       //-------------------------------------------------------------------------------------  
       numerr=0;
     } // else
-    sleep(0.5);
+    usleep(30000); // 0.1 seconds
   } // while
 
   return 0;
