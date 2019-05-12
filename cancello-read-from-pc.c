@@ -16,7 +16,8 @@
 #include "gh.h"
 
 modbus_t *mb;
-modbus_t *mb_zbrn1;
+modbus_t *mb_otb_pc;
+
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
@@ -98,14 +99,14 @@ void rotate() {
 void myCleanExit(char * from) {
   logvalue(LOG_FILE,from);
   unlink(LOCK_FILE);
-  logvalue(LOG_FILE,"\tChiudo la connessione con PLC e OTB\n");
+  logvalue(LOG_FILE,"\tChiudo la connessione con PLC e OTB su PC\n");
   modbus_close(mb);
   modbus_free(mb);
   logvalue(LOG_FILE,"\tLibero la memoria dalle strutture create\n");
-  modbus_close(mb_zbrn1);
-  modbus_free(mb_zbrn1);
+  modbus_close(mb_otb_pc);
+  modbus_free(mb_otb_pc);
   logvalue(LOG_FILE,"Fine.\n");
-  logvalue(LOG_FILE,"****************** END **********************\n");
+  logvalue(LOG_FILE,"****************** END READ FROM PC **********************\n");
   
 }
 
@@ -116,7 +117,7 @@ void signal_handler(int sig)
   case SIGHUP:
     // ----------------------------------
     rotate();
-    logvalue(LOG_FILE,"new log file after rotation\n");
+    logvalue(LOG_FILE,"new log file after rotation read from pc\n");
     break;
     // ---------------------------------
     
@@ -145,7 +146,7 @@ void daemonize()
   if (lfp<0) exit(EX_OSERR); /* can not open */
 
   if (lockf(lfp,F_TLOCK,0)<0) {
-    logvalue(LOG_FILE,"Cannot Start. There is another process running. exit\n");
+    logvalue(LOG_FILE,"Cannot Start. There is another process running. read from pc exit\n");
     exit(EX_OK); /* can not lock */
   }
 
@@ -160,15 +161,20 @@ void daemonize()
   signal(SIGPIPE,SIG_IGN);
   signal(SIGHUP,signal_handler); /* catch hangup signal */
   signal(SIGTERM,signal_handler); /* catch kill signal */
-  logvalue(LOG_FILE,"****************** START **********************\n");
+  logvalue(LOG_FILE,"****************** START READ FROM PC **********************\n");
 }
 
 int main (int argc, char ** argv) {
 
-  uint16_t otb_in[1];
+  uint16_t otb_pc_in[10];
   char errmsg[100];
   uint16_t numerr = 0;
   struct timeval response_timeout;
+
+  enum comando {IAT=512,IAP=256};
+
+
+
 
   // unit16_t plc_in[10];
   // system("echo \"PRIMNA di daemon\" | /usr/bin/mutt -s \"PRIMA di daemon\" vittorio.giannini@windtre.it");
@@ -176,14 +182,14 @@ int main (int argc, char ** argv) {
   daemonize();
 
   mb = modbus_new_tcp("192.168.1.157",PORT);
-  mb_zbrn1 = modbus_new_tcp("192.168.1.160",PORT);
+  mb_otb_pc = modbus_new_tcp("192.168.1.103",PORT);
 
   /* Define a new timeout! */
-  response_timeout.tv_sec = 4;
+  response_timeout.tv_sec = 10;
   response_timeout.tv_usec = 0;
 
-  modbus_set_response_timeout(mb,     &response_timeout); // 4 seconds 0 usec
-  modbus_set_response_timeout(mb_zbrn1, &response_timeout); // 4 seconds 0 usec
+  modbus_set_response_timeout(mb,     &response_timeout); // 5 seconds 0 usec
+  modbus_set_response_timeout(mb_otb_pc, &response_timeout); // 5 seconds 0 usec
 
   if ( (modbus_connect(mb) == -1 ))
     {
@@ -193,63 +199,95 @@ int main (int argc, char ** argv) {
       exit(EXIT_FAILURE);
     }
 
-  if ( (modbus_connect(mb_zbrn1) == -1))
+  if ( (modbus_connect(mb_otb_pc) == -1))
     {
-      sprintf(errmsg,"ERRORE non riesco a connettermi con ZBRN1. Premature exit [%s]\n",modbus_strerror(errno));
+      sprintf(errmsg,"ERRORE non riesco a connettermi con l'OTB PC. Premature exit (il processo \"event\" è attivo?) [%s]\n",modbus_strerror(errno));
       //logvalue(LOG_FILE,errmsg);
       myCleanExit(errmsg);
       exit(EXIT_FAILURE);
     }
 
   while (1) {
-    if ( modbus_read_registers(mb_zbrn1, 0, 1, otb_in) < 0 ) {    // leggo lo stato degli ingressi collegati al wireless button
+    /*
+      registro 74 sul PC contiene gli ingressi dell'OTB che sono letti dal PLC (192.168.1.157) e quindi trasferiti sul PC
+     */
+    if ( modbus_read_registers(mb_otb_pc, 74, 1, otb_pc_in) < 0 ) {    // leggo lo stato degli ingressi collegati al wireless button
 
       numerr++;
-      sprintf(errmsg,"ERRORE Lettura Registro ZBRN1 per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+      sprintf(errmsg,"ERRORE Lettura Registro OTB PC per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
       logvalue(LOG_FILE,errmsg);
 
-      modbus_close(mb_zbrn1);      
-      modbus_free(mb_zbrn1);
-      mb_zbrn1 = modbus_new_tcp("192.168.1.160",PORT);
-      response_timeout.tv_sec = 4;
+      modbus_close(mb_otb_pc);      
+      modbus_free(mb_otb_pc);
+      mb_otb_pc = modbus_new_tcp("192.168.1.103",PORT);
+      response_timeout.tv_sec = 10;
       response_timeout.tv_usec = 0;
-      modbus_set_response_timeout(mb_zbrn1, &response_timeout); // 10 seconds 0 usec
+      modbus_set_response_timeout(mb_otb_pc, &response_timeout); // 10 seconds 0 usec
     
-      if (modbus_connect(mb_zbrn1)==-1) {
-	sprintf(errmsg,"\tERRORE riconnessione ZBRN1 [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+      if (modbus_connect(mb_otb_pc)==-1) {
+	sprintf(errmsg,"\tERRORE riconnessione OTB PC [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
 	logvalue(LOG_FILE,errmsg);
       }
       
       if (numerr > 15) {
-	system("echo \"Errore di lettura nel registro OTB. Programma chiuso\" | /usr/bin/mutt -s \"Errore nella lettura del registro OTB\" vittorio.giannini@windtre.it");
-	myCleanExit("Too many errors while readin OTB registers\n");
+	system("echo \"Errore di lettura nel registro OTB PC. Programma chiuso\" | /usr/bin/mutt -s \"Errore nella lettura del registro IN OTB PC (74)\" vittorio.giannini@windtre.it");
+	myCleanExit("Too many errors while readin OTB PC registers\n");
 	exit(EXIT_FAILURE);
       }
     } else {
+      /*
+	..........
+	[2019-04-25 11:00:06] OTB_IN8=0   - OTB_IN9=0
+	[2019-04-25 11:00:06] OTB_IN8=256 - OTB_IN9=0
+	[2019-04-25 11:00:06]    TEST CASE: APERTURA PARZIALE CANCELLO INGRESSO
+	...........
+	[2019-04-25 11:00:10] OTB_IN8=0 - OTB_IN9=0
+	[2019-04-25 11:00:10] OTB_IN8=0 - OTB_IN9=512
+	[2019-04-25 11:00:10]    TEST CASE: APERTURA TOTALE CANCELLO INGRESSO
+	...........
+       */
+
+      
+
+
+#ifdef PLUTO      
+      sprintf(errmsg,"OTB_IN8=%i - OTB_IN9=%i\n",(uint16_t)CHECK_BIT(otb_pc_in[0],OTB_IN8),(uint16_t)CHECK_BIT(otb_pc_in[0],OTB_IN9));
+      logvalue(LOG_FILE,errmsg);
+      switch (otb_pc_in[0] & (3<<8)) {
+      case 512: // bit 9 = OTB_IN9
+	logvalue(LOG_FILE,"\t TEST CASE: APERTURA TOTALE CANCELLO INGRESSO\n");
+	break;
+      case 256: // bit 8 = OTB_IN8
+	logvalue(LOG_FILE,"\t TEST CASE: APERTURA PARZIALE CANCELLO INGRESSO\n");
+	break;
+      }
+#endif      
+
+#ifdef PIPPO
       //-------------------------------------------------------------------------------------
-      if ( CHECK_BIT(otb_in[0],0) ) { 
+      if ( CHECK_BIT(otb_pc_in[0],OTB_IN8) ) {
+	// (read_single_state((uint16_t)otb_pc_in[0],OTB_IN8)) {
 	logvalue(LOG_FILE,"APERTURA PARZIALE CANCELLO INGRESSO\n");
 	if (pulsante(mb,APERTURA_PARZIALE)<0) {
 	  logvalue(LOG_FILE,"\tproblemi con pulsante\n");
 	}
       }
       //-------------------------------------------------------------------------------------      
-      if ( CHECK_BIT(otb_in[0],1) ) { 
-	// (read_single_state((uint16_t)otb_in[0],OTB_IN9)) 
-	
+      if ( CHECK_BIT(otb_pc_in[0],OTB_IN9) ) {
+	// (read_single_state((uint16_t)otb_pc_in[0],OTB_IN9)) {
 	logvalue(LOG_FILE,"APERTURA TOTALE CANCELLO INGRESSO\n");
 	if (pulsante(mb,APERTURA_TOTALE)<0) {
 	  logvalue(LOG_FILE,"\tproblemi con pulsante\n");
 	}
       }
       //-------------------------------------------------------------------------------------  
+#endif
+
       numerr=0;
     } // else
-    usleep(30000); // 0.1 seconds
+    usleep(250000); // pausa di 0.5 secondi
   } // while
 
   return 0;
 
 }
-
-
