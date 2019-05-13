@@ -13,12 +13,26 @@
 #include <sys/time.h>
 #include <time.h>
 #include <modbus.h>
-#include "gh.h"
-
-modbus_t *mb;
-modbus_t *mb_zbrn1;
+//#include "gh.h"
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+
+// IP Device
+#define ZBRN1_IP "192.168.1.160"
+#define PLC_IP "192.168.1.157"
+#define PORT 502
+
+// Uscite PLC cancello
+#define APERTURA_PARZIALE 96 /* %M96 */
+#define APERTURA_TOTALE 97 /* %M97 */
+
+// Directory
+#define RUNNING_DIR     "/home/reario/cancello/"
+#define LOCK_FILE       "/home/reario/cancello/cancello.lock"
+#define LOG_FILE        "/home/reario/cancello/cancello.log"
+
+modbus_t *mb_plc;
+modbus_t *mb_zbrn1;
 
 int ts(char * tst, char * fmt)
 {
@@ -56,7 +70,20 @@ void logvalue(char *filename, char *message)
   fclose(logfile);
 }
 
-int pulsante(modbus_t *m,int bobina) {
+int pulsante(modbus_t *m, uint8_t bobina, uint8_t valore) {
+  char errmsg[100];
+  
+  if ( modbus_write_bit(m,bobina,valore) != 1 ) { // valore = TRUE se da accendere, FALSE se da spegnere
+    // The modbus_write_bit() function shall return 1 if successful. 
+    // Otherwise it shall return -1 and set errno.
+    sprintf(errmsg,"ERRORE DI SCRITTURA:PULSANTE ON %s\n",modbus_strerror(errno));
+    logvalue(LOG_FILE,errmsg);
+    return -1;
+  }
+  return 1; 
+}
+
+int pulsante_old(modbus_t *m,int bobina) {
 
   char errmsg[100];
 
@@ -99,8 +126,8 @@ void myCleanExit(char * from) {
   logvalue(LOG_FILE,from);
   unlink(LOCK_FILE);
   logvalue(LOG_FILE,"\tChiudo la connessione con PLC e ZBRN1\n");
-  modbus_close(mb);
-  modbus_free(mb);
+  modbus_close(mb_plc);
+  modbus_free(mb_plc);
   logvalue(LOG_FILE,"\tLibero la memoria dalle strutture create\n");
   modbus_close(mb_zbrn1);
   modbus_free(mb_zbrn1);
@@ -178,8 +205,8 @@ int main (int argc, char ** argv) {
 
 #define PLUTO
   
-  mb = modbus_new_tcp("192.168.1.157",PORT);
-  mb_zbrn1 = modbus_new_tcp("192.168.1.160",PORT);
+  mb_plc = modbus_new_tcp(PLC_IP,PORT);
+  mb_zbrn1 = modbus_new_tcp(ZBRN1_IP,PORT);
 
   uint16_t oldval = 0;
   uint16_t newval = 0;
@@ -187,20 +214,18 @@ int main (int argc, char ** argv) {
   uint32_t response_timeout_sec = 4;
   uint32_t response_timeout_usec = 0;
 
-  modbus_set_response_timeout(mb,     response_timeout_sec, response_timeout_usec); // 4 seconds 0 usec
-  modbus_set_response_timeout(mb_zbrn1, response_timeout_sec, response_timeout_usec); // 4 seconds 0 usec
+  modbus_set_response_timeout(mb_plc,      response_timeout_sec, response_timeout_usec); // 4 seconds 0 usec
+  modbus_set_response_timeout(mb_zbrn1,response_timeout_sec, response_timeout_usec); // 4 seconds 0 usec
   modbus_set_slave(mb_zbrn1,248);
   
-  if ( (modbus_connect(mb) == -1 ))
-    {
+  if ( (modbus_connect(mb_plc) == -1 )) {
   sprintf(errmsg,"ERRORE non riesco a connettermi con il PLC %s\n",modbus_strerror(errno));
   //logvalue(LOG_FILE,errmsg);
   myCleanExit(errmsg);
   exit(EXIT_FAILURE);
 }
   
-  if ( (modbus_connect(mb_zbrn1) == -1))
-    {
+  if ( (modbus_connect(mb_zbrn1) == -1)) {
   sprintf(errmsg,"ERRORE non riesco a connettermi con ZBRN1. Premature exit [%s]\n",modbus_strerror(errno));
   //logvalue(LOG_FILE,errmsg);
   myCleanExit(errmsg);
@@ -209,7 +234,6 @@ int main (int argc, char ** argv) {
 
   oldval = newval;
   while (1) {
-    char msg[0];
     if ( modbus_read_registers(mb_zbrn1, 0, 1, otb_in) < 0 ) {    // leggo lo stato degli ingressi collegati al wireless button
       
       numerr++;
@@ -246,14 +270,20 @@ int main (int argc, char ** argv) {
 	    switch ( curr ) {
 	    case 0: {
 	      // bit posizione 0
-	      sprintf(msg,"*bit 0 transizione 0->1 %u --> %u [%u]\n",oldval,newval,curr);
-	      logvalue(LOG_FILE,msg);
+	      sprintf(errmsg,"*bit 0 transizione 0->1 %u --> %u [%u]\n",oldval,newval,curr);
+	      logvalue(LOG_FILE,errmsg);
+	      if (pulsante(mb_plc,APERTURA_PARZIALE,TRUE)<0) {
+		logvalue(LOG_FILE,"\tproblemi con pulsante\n");
+	      }	      
 	      break;
 	    }
 	    case 1: {
 	      // bit posizione 1
-	      sprintf(msg,"bit 1 transizione 0->1 %u --> %u [%u]\n",oldval,newval,curr);
-	      logvalue(LOG_FILE,msg);
+	      sprintf(errmsg,"bit 1 transizione 0->1 %u --> %u [%u]\n",oldval,newval,curr);
+	      logvalue(LOG_FILE,errmsg);
+	      if (pulsante(mb_plc,APERTURA_TOTALE,TRUE)<0) {
+		logvalue(LOG_FILE,"\tproblemi con pulsante\n");
+	      }
 	      break;
 	    }
 	    } 
@@ -264,14 +294,20 @@ int main (int argc, char ** argv) {
 	    switch ( curr ) {
 	    case 0: {
 	      // bit posizione 0
-	      sprintf(msg,"*bit 0 transizione 1->0 %u --> %u\n",oldval,newval);
-	      logvalue(LOG_FILE,msg);
+	      sprintf(errmsg,"*bit 0 transizione 1->0 %u --> %u\n",oldval,newval);
+	      logvalue(LOG_FILE,errmsg);
+	      if (pulsante(mb_plc,APERTURA_TOTALE,FALSE)<0) {
+		logvalue(LOG_FILE,"\tproblemi con pulsante\n");
+	      }
 	      break;
 	    }
 	    case 1: {
 	      // bit posizione 1
-	      sprintf(msg,"bit 1 transizione 1->0 %u --> %u\n",oldval,newval);
-	      logvalue(LOG_FILE,msg);
+	      sprintf(errmsg,"bit 1 transizione 1->0 %u --> %u\n",oldval,newval);
+	      logvalue(LOG_FILE,errmsg);
+	      if (pulsante(mb_plc,APERTURA_PARZIALE,FALSE)<0) {
+		logvalue(LOG_FILE,"\tproblemi con pulsante\n");
+	      }
 	      break;
 	    }
 	    } // switch
@@ -285,7 +321,7 @@ int main (int argc, char ** argv) {
     //-------------------------------------------------------------------------------------
     if ( CHECK_BIT(otb_in[0],0) ) { 
       logvalue(LOG_FILE,"APERTURA PARZIALE CANCELLO INGRESSO\n");
-      if (pulsante(mb,APERTURA_PARZIALE)<0) {
+      if (pulsante_old(mb_plc,APERTURA_PARZIALE)<0) {
 	logvalue(LOG_FILE,"\tproblemi con pulsante\n");
       }
     }
@@ -294,7 +330,7 @@ int main (int argc, char ** argv) {
       // (read_single_state((uint16_t)otb_in[0],OTB_IN9)) 
       
       logvalue(LOG_FILE,"APERTURA TOTALE CANCELLO INGRESSO\n");
-      if (pulsante(mb,APERTURA_TOTALE)<0) {
+      if (pulsante_old(mb,APERTURA_TOTALE)<0) {
 	logvalue(LOG_FILE,"\tproblemi con pulsante\n");
       }
     }
@@ -304,7 +340,7 @@ int main (int argc, char ** argv) {
     numerr=0;
   } // else
 
-  usleep(200000);
+  usleep(100000);
   } // while
   
   return 0;
