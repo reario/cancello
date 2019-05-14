@@ -192,7 +192,7 @@ void daemonize()
 
 int main (int argc, char ** argv) {
 
-  uint16_t otb_in[1];
+  uint16_t zbrn1_reg[1];
   char errmsg[100];
   uint16_t numerr = 0;
   
@@ -234,15 +234,16 @@ int main (int argc, char ** argv) {
 
   oldval = newval;
   while (1) {
-    if ( modbus_read_registers(mb_zbrn1, 0, 1, otb_in) < 0 ) {    // leggo lo stato degli ingressi collegati al wireless button
+    
+    if ( modbus_read_registers(mb_zbrn1, 0, 1, zbrn1_reg) < 0 ) {    // leggo lo stato degli ingressi collegati al wireless button
       
       numerr++;
       sprintf(errmsg,"ERRORE Lettura Registro ZBRN1 per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
       logvalue(LOG_FILE,errmsg);
     
       modbus_close(mb_zbrn1);      
-      modbus_free(mb_zbrn1);
-      mb_zbrn1 = modbus_new_tcp("192.168.1.160",PORT);
+      modbus_free( mb_zbrn1);
+      mb_zbrn1 = modbus_new_tcp(ZBRN1_IP,PORT);
       response_timeout_sec = 4;
       response_timeout_usec = 0;
       modbus_set_response_timeout(mb_zbrn1, response_timeout_sec, response_timeout_usec); 
@@ -261,7 +262,7 @@ int main (int argc, char ** argv) {
     } else {
       
 #ifdef PLUTO
-      newval=otb_in[0]; // registro 1 dove sono messi i primi 16 pulsanti (bit da 0 a 15)
+      newval=zbrn1_reg[0]; // registro 1 dove sono messi i primi 16 pulsanti (bit da 0 a 15)
       if (oldval != newval) {
 	uint8_t curr;
 	for (curr = 0; curr<2; curr++) {
@@ -272,9 +273,19 @@ int main (int argc, char ** argv) {
 	      // bit posizione 0
 	      sprintf(errmsg,"*bit 0 transizione 0->1 %u --> %u [%u]\n",oldval,newval,curr);
 	      logvalue(LOG_FILE,errmsg);
+	      // connect
+	      // modbus_t *mb_plc = modbus_new_tcp(PLC_IP,PORT);
+	      // if (modbus_connect(mb_plc) != -1) { 
 	      if (pulsante(mb_plc,APERTURA_PARZIALE,TRUE)<0) {
 		logvalue(LOG_FILE,"\tproblemi con pulsante\n");
-	      }	      
+	      } 
+	      // close
+	      // mobus_close(mb_plc);b
+	      // } else {
+	      //   sprintf(errmsg,"ERRORE non riesco a connettermi con il PLC %s\n",modbus_strerror(errno));
+	      //   logvalue(LOG_FILE,errmsg);
+	      // }
+	      // mbus_free(mb_plc);
 	      break;
 	    }
 	    case 1: {
@@ -288,7 +299,6 @@ int main (int argc, char ** argv) {
 	    }
 	    } 
 	  }
-	  
 	  if (CHECK_BIT(oldval,curr) && !CHECK_BIT(newval,curr)) {
 	    // 1->0
 	    switch ( curr ) {
@@ -296,7 +306,7 @@ int main (int argc, char ** argv) {
 	      // bit posizione 0
 	      sprintf(errmsg,"*bit 0 transizione 1->0 %u --> %u\n",oldval,newval);
 	      logvalue(LOG_FILE,errmsg);
-	      if (pulsante(mb_plc,APERTURA_TOTALE,FALSE)<0) {
+	      if (pulsante(mb_plc,APERTURA_PARZIALE,FALSE)<0) {
 		logvalue(LOG_FILE,"\tproblemi con pulsante\n");
 	      }
 	      break;
@@ -305,7 +315,7 @@ int main (int argc, char ** argv) {
 	      // bit posizione 1
 	      sprintf(errmsg,"bit 1 transizione 1->0 %u --> %u\n",oldval,newval);
 	      logvalue(LOG_FILE,errmsg);
-	      if (pulsante(mb_plc,APERTURA_PARZIALE,FALSE)<0) {
+	      if (pulsante(mb_plc,APERTURA_TOTALE,FALSE)<0) {
 		logvalue(LOG_FILE,"\tproblemi con pulsante\n");
 	      }
 	      break;
@@ -319,15 +329,14 @@ int main (int argc, char ** argv) {
     
 #ifdef PIPPO
     //-------------------------------------------------------------------------------------
-    if ( CHECK_BIT(otb_in[0],0) ) { 
+    if ( CHECK_BIT(zbrn1_reg[0],0) ) { 
       logvalue(LOG_FILE,"APERTURA PARZIALE CANCELLO INGRESSO\n");
       if (pulsante_old(mb_plc,APERTURA_PARZIALE)<0) {
 	logvalue(LOG_FILE,"\tproblemi con pulsante\n");
       }
     }
     //-------------------------------------------------------------------------------------      
-    if ( CHECK_BIT(otb_in[0],1) ) { 
-      // (read_single_state((uint16_t)otb_in[0],OTB_IN9)) 
+    if ( CHECK_BIT(zbrn1_reg[0],1) ) { 
       
       logvalue(LOG_FILE,"APERTURA TOTALE CANCELLO INGRESSO\n");
       if (pulsante_old(mb,APERTURA_TOTALE)<0) {
@@ -336,11 +345,9 @@ int main (int argc, char ** argv) {
     }
     //-------------------------------------------------------------------------------------  
 #endif
-
     numerr=0;
   } // else
-
-  usleep(100000);
+  usleep(300000);
   } // while
   
   return 0;
