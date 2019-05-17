@@ -33,6 +33,9 @@
 
 modbus_t *mb_plc;
 modbus_t *mb_zbrn1;
+uint8_t coilmap[] = {APERTURA_PARZIALE,APERTURA_TOTALE};
+
+
 
 int ts(char * tst, char * fmt)
 {
@@ -190,31 +193,46 @@ void daemonize()
   logvalue(LOG_FILE,"****************** START **********************\n");
 }
 
+uint8_t operate(modbus_t *m,uint8_t current,uint8_t onoff)
+{
+  char msg[100];
+  uint8_t bobina;
+  sprintf(msg,"bit [%u] transizione %s",current,onoff ? "0->1\n":"1->0\n");
+  logvalue(LOG_FILE,msg);
+  bobina=coilmap[current];
+  sprintf(msg,"modbus_write_bit(m,%s,%s);\n",bobina==APERTURA_PARZIALE?"APERTURA_PARZIALE":"APERTURA_TOTALE",onoff?"ON":"OFF");
+  // sprintf(msg,"modbus_write_bit(m,%u,%s);\n",bobina,onoff?"ON":"OFF");
+  logvalue(LOG_FILE,msg);
+  if // (0)
+    (modbus_write_bit(m,bobina,onoff) != 1 )
+    {
+      sprintf(msg,"ERRORE DI SCRITTURA:PULSANTE %s %s\n",onoff ? "0->1\n":"1->0\n",modbus_strerror(errno));
+      logvalue(LOG_FILE,msg);
+      return -1;
+    }  
+  return 1;
+}
+
+
 int main (int argc, char ** argv) {
 
   uint16_t zbrn1_reg[1];
   char errmsg[100];
   uint16_t numerr = 0;
   
-  //struct timeval response_timeout;
-
-  // unit16_t plc_in[10];
-  // system("echo \"PRIMNA di daemon\" | /usr/bin/mutt -s \"PRIMA di daemon\" vittorio.giannini@windtre.it");
- 
   daemonize();
-
-#define PLUTO
   
   mb_plc = modbus_new_tcp(PLC_IP,PORT);
   mb_zbrn1 = modbus_new_tcp(ZBRN1_IP,PORT);
 
   uint16_t oldval = 0;
   uint16_t newval = 0;
+  
   /* Define a new timeout! */
-  uint32_t response_timeout_sec = 4;
+  uint32_t response_timeout_sec = 2;
   uint32_t response_timeout_usec = 0;
 
-  modbus_set_response_timeout(mb_plc,      response_timeout_sec, response_timeout_usec); // 4 seconds 0 usec
+  modbus_set_response_timeout(mb_plc,  response_timeout_sec, response_timeout_usec); // 4 seconds 0 usec
   modbus_set_response_timeout(mb_zbrn1,response_timeout_sec, response_timeout_usec); // 4 seconds 0 usec
   modbus_set_slave(mb_zbrn1,248);
   
@@ -255,12 +273,45 @@ int main (int argc, char ** argv) {
       }
       
       if (numerr > 5) {
-	system("echo \"Errore di lettura nel registro ZBRN1. Programma chiuso\" | /usr/bin/mutt -s \"Errore nella lettura del registro ZBRN1\" vittorio.giannini@windtre.it");
+	system("echo \"Errore di lettura nel registro ZBRN1. Programma chiuso\" | \
+                /usr/bin/mutt -s \"Errore nella lettura del registro ZBRN1\" \
+                vittorio.giannini@windtre.it"); // installare Mutt
 	myCleanExit("Too many errors while reading ZBRN1 registers\n");
 	exit(EXIT_FAILURE);
       }
     } else {
+
+#define TOPOLINO
       
+#ifdef TOPOLINO
+      newval=zbrn1_reg[0]; // registro 1 dove sono messi i primi 16 pulsanti (bit da 0 a 15)
+      uint16_t diff = newval ^ oldval;
+      if (diff) {
+	uint8_t curr;
+	for (curr = 0; curr<2; curr++) {
+	  if (CHECK_BIT(diff,curr)) {
+	    // vedo se il bit curr di oldval è a 0 o a 1
+	    // se era a 0 in newval è passato a 1 e viceversa
+	    operate(mb_plc, curr, CHECK_BIT(oldval,curr)?FALSE:TRUE);
+	  }
+	}	
+      }
+#endif
+      
+#ifdef PAPERINO
+      newval=zbrn1_reg[0]; // registro 1 dove sono messi i primi 16 pulsanti (bit da 0 a 15)
+      if (oldval != newval) {
+	uint8_t curr;
+	for (curr = 0; curr<2; curr++) {
+	  if (!CHECK_BIT(oldval,curr) && CHECK_BIT(newval,curr)) {
+	    operate(mb_plc,curr,TRUE);
+	  }
+	  if (CHECK_BIT(oldval,curr) && !CHECK_BIT(newval,curr)) {
+	    operate(mb_plc,curr,FALSE);
+	  }	  
+	}
+      }
+#endif
 #ifdef PLUTO
       newval=zbrn1_reg[0]; // registro 1 dove sono messi i primi 16 pulsanti (bit da 0 a 15)
       if (oldval != newval) {
@@ -324,30 +375,11 @@ int main (int argc, char ** argv) {
 	  } // if (CHECK_BIT()......
 	} // for ( curr ) { .......
       }
-      oldval=newval;                 
-#endif
-    
-#ifdef PIPPO
-    //-------------------------------------------------------------------------------------
-    if ( CHECK_BIT(zbrn1_reg[0],0) ) { 
-      logvalue(LOG_FILE,"APERTURA PARZIALE CANCELLO INGRESSO\n");
-      if (pulsante_old(mb_plc,APERTURA_PARZIALE)<0) {
-	logvalue(LOG_FILE,"\tproblemi con pulsante\n");
-      }
-    }
-    //-------------------------------------------------------------------------------------      
-    if ( CHECK_BIT(zbrn1_reg[0],1) ) { 
-      
-      logvalue(LOG_FILE,"APERTURA TOTALE CANCELLO INGRESSO\n");
-      if (pulsante_old(mb,APERTURA_TOTALE)<0) {
-	logvalue(LOG_FILE,"\tproblemi con pulsante\n");
-      }
-    }
-    //-------------------------------------------------------------------------------------  
 #endif
     numerr=0;
+    oldval=newval;                 
   } // else
-  usleep(300000);
+    usleep(100000);
   } // while
   
   return 0;
