@@ -21,18 +21,18 @@
 #define PLC_IP "192.168.1.157"
 #define PORT 502
 
-// Uscite PLC cancello
-#define APERTURA_PARZIALE 96 /* %M96 */
-#define APERTURA_TOTALE 97 /* %M97 */
-
+// Uscite PLC TWIDO cancello
+#define APERTURA_PARZIALE 96 /* %M96 TWIDO */
+#define APERTURA_TOTALE 97 /* %M97 TWIDO */
+#define SERRATURA_PORTONE 12 /* %M12 TWIDO */
 // Directory
 #define RUNNING_DIR     "/home/reario/cancello/"
 #define LOCK_FILE       "/home/reario/cancello/cancello.lock"
 #define LOG_FILE        "/home/reario/cancello/cancello.log"
 
-//modbus_t *mb_plc;
 modbus_t *mb_zbrn1;
-uint8_t coilmap[] = {APERTURA_PARZIALE,APERTURA_TOTALE};
+uint8_t coilmap[] = {APERTURA_PARZIALE,APERTURA_TOTALE,SERRATURA_PORTONE};
+
 
 int ts(char * tst, char * fmt)
 {
@@ -152,27 +152,29 @@ void daemonize()
   logvalue(LOG_FILE,"****************** START **********************\n");
 }
 
-//uint8_t operate(modbus_t *m,uint8_t current,uint8_t onoff)
-uint8_t operate(uint8_t current,uint8_t onoff)
+
+uint8_t cancello(uint8_t current, uint8_t onoff)
 {
   modbus_t *mb_plc;
   char msg[100];
   uint8_t bobina;
   mb_plc = modbus_new_tcp(PLC_IP,PORT);
+  modbus_set_response_timeout(mb_plc,  2, 0); // 2 seconds 0 usec
   if ( (modbus_connect(mb_plc) == -1 )) {
       sprintf(msg,"ERRORE non riesco a connettermi con il PLC %s\n",modbus_strerror(errno));
-      //logvalue(LOG_FILE,errmsg);
-      
       return -1;
   }
   sprintf(msg,"bit [%u] transizione %s",current,onoff ? "0->1\n":"1->0\n");
   logvalue(LOG_FILE,msg);
   bobina=coilmap[current];
-  sprintf(msg,"modbus_write_bit(m,%s,%s);\n",bobina==APERTURA_PARZIALE?"APERTURA_PARZIALE":"APERTURA_TOTALE",onoff?"ON":"OFF");
-  // sprintf(msg,"modbus_write_bit(m,%u,%s);\n",bobina,onoff?"ON":"OFF");
+  sprintf(msg,"modbus_write_bit(m,%u,%s);\n",bobina,onoff?"ON":"OFF");
   logvalue(LOG_FILE,msg);
-  if // (0)
-    (modbus_write_bit(mb_plc,bobina,onoff) != 1 )
+  /* sprintf(msg,"modbus_write_bit(m,%s,%s);\n" */
+  /* 	  ,bobina==APERTURA_PARZIALE?"APERTURA_PARZIALE":"APERTURA_TOTALE", */
+  /* 	  onoff?"ON":"OFF"); */
+  /* logvalue(LOG_FILE,msg); */
+
+  if (modbus_write_bit(mb_plc,bobina,onoff) != 1 )
     {
       sprintf(msg,"ERRORE DI SCRITTURA:PULSANTE %s %s\n",onoff ? "0->1\n":"1->0\n",modbus_strerror(errno));
       logvalue(LOG_FILE,msg);
@@ -206,15 +208,6 @@ int main (int argc, char ** argv) {
   //modbus_set_response_timeout(mb_plc,  response_timeout_sec, response_timeout_usec); // 4 seconds 0 usec
   modbus_set_response_timeout(mb_zbrn1,response_timeout_sec, response_timeout_usec); // 4 seconds 0 usec
   modbus_set_slave(mb_zbrn1,248);
-  
- /*  if ( (modbus_connect(mb_plc) == -1 )) { */
-/*   sprintf(errmsg,"ERRORE non riesco a connettermi con il PLC %s\n",modbus_strerror(errno)); */
-/*   //logvalue(LOG_FILE,errmsg); */
-/*   myCleanExit(errmsg); */
-/*   exit(EXIT_FAILURE); */
-/* } */
-  
-  
   if ( (modbus_connect(mb_zbrn1) == -1)) {
   sprintf(errmsg,"ERRORE non riesco a connettermi con ZBRN1. Premature exit [%s]\n",modbus_strerror(errno));
   //logvalue(LOG_FILE,errmsg);
@@ -230,17 +223,15 @@ int main (int argc, char ** argv) {
       numerr++;
       sprintf(errmsg,"ERRORE Lettura Registro ZBRN1 per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
       logvalue(LOG_FILE,errmsg);
-      modbus_close(mb_zbrn1);      
+      modbus_close(mb_zbrn1);
       modbus_free( mb_zbrn1);
       mb_zbrn1 = modbus_new_tcp(ZBRN1_IP,PORT);
       modbus_set_response_timeout(mb_zbrn1, response_timeout_sec, response_timeout_usec); 
       modbus_set_slave(mb_zbrn1,248);
-      
       if (modbus_connect(mb_zbrn1)==-1) {
 	sprintf(errmsg,"\tERRORE Riconnessione ZBRN1 [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
 	logvalue(LOG_FILE,errmsg);
       }
-      
       if (numerr > 5) {
 	system("echo \"Errore di lettura nel registro ZBRN1. Programma chiuso\" | \
                 /usr/bin/mutt -s \"Errore nella lettura del registro ZBRN1\" \
@@ -253,19 +244,17 @@ int main (int argc, char ** argv) {
       uint16_t diff = newval ^ oldval;
       if (diff) {
 	uint8_t curr;
-	for (curr = 0; curr<2; curr++) {
+	for (curr = 0; curr<3; curr++) {
 	  if (CHECK_BIT(diff,curr)) {
 	    // vedo se il bit curr di oldval è a 0 o a 1
-	    // se era a 0 in newval è passato a 1 e viceversa
-	    operate(curr, CHECK_BIT(oldval,curr)?FALSE:TRUE);
-	    //operate(mb_plc, curr, CHECK_BIT(oldval,curr)?FALSE:TRUE);
+	    cancello(curr, CHECK_BIT(oldval,curr) ? FALSE : TRUE);
 	  }
 	}	
       }
-    numerr=0;
-    oldval=newval;                 
-  } // else
-    usleep(200000); // 1/10 sec
+      numerr=0;
+      oldval=newval;                 
+    } // else
+    usleep(200000); // 2/10 sec
   } // while
   return 0; 
 }
