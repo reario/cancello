@@ -25,13 +25,14 @@
 #define APERTURA_PARZIALE 96 /* %M96 TWIDO */
 #define APERTURA_TOTALE 97 /* %M97 TWIDO */
 #define SERRATURA_PORTONE 12 /* %M12 TWIDO */
+#define LUCI_STUDIO_SOTTO 7 /* %M7 */
 // Directory
 #define RUNNING_DIR     "/home/reario/cancello/"
 #define LOCK_FILE       "/home/reario/cancello/cancello.lock"
 #define LOG_FILE        "/home/reario/cancello/cancello.log"
 
 modbus_t *mb_zbrn1;
-uint8_t coilmap[] = {APERTURA_PARZIALE,APERTURA_TOTALE,SERRATURA_PORTONE};
+uint8_t coilmap[] = {APERTURA_PARZIALE,APERTURA_TOTALE,SERRATURA_PORTONE,LUCI_STUDIO_SOTTO,255};
 
 
 int ts(char * tst, char * fmt)
@@ -158,6 +159,7 @@ uint8_t cancello(uint8_t current, uint8_t onoff)
   modbus_t *mb_plc;
   char msg[100];
   uint8_t bobina;
+
   mb_plc = modbus_new_tcp(PLC_IP,PORT);
   modbus_set_response_timeout(mb_plc,  2, 0); // 2 seconds 0 usec
   if ( (modbus_connect(mb_plc) == -1 )) {
@@ -173,7 +175,11 @@ uint8_t cancello(uint8_t current, uint8_t onoff)
   /* 	  ,bobina==APERTURA_PARZIALE?"APERTURA_PARZIALE":"APERTURA_TOTALE", */
   /* 	  onoff?"ON":"OFF"); */
   /* logvalue(LOG_FILE,msg); */
-
+  if (current >= 4) {
+    modbus_close(mb_plc);
+    modbus_free(mb_plc);
+    return 1;
+  }
   if (modbus_write_bit(mb_plc,bobina,onoff) != 1 )
     {
       sprintf(msg,"ERRORE DI SCRITTURA:PULSANTE %s %s\n",onoff ? "0->1\n":"1->0\n",modbus_strerror(errno));
@@ -232,7 +238,7 @@ int main (int argc, char ** argv) {
 	sprintf(errmsg,"\tERRORE Riconnessione ZBRN1 [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
 	logvalue(LOG_FILE,errmsg);
       }
-      if (numerr > 5) {
+      if (numerr > 15) {
 	system("echo \"Errore di lettura nel registro ZBRN1. Programma chiuso\" | \
                 /usr/bin/mutt -s \"Errore nella lettura del registro ZBRN1\" \
                 vittorio.giannini@windtre.it"); // installare Mutt
@@ -244,7 +250,11 @@ int main (int argc, char ** argv) {
       uint16_t diff = newval ^ oldval;
       if (diff) {
 	uint8_t curr;
-	for (curr = 0; curr<3; curr++) {
+	for (curr = 0; curr<4; curr++) {
+	  // al momento solo 4 pulsanti:
+	  // 2 per cancello scorrevole
+	  // 1 portoncino
+	  // 1 luce studio sotto
 	  if (CHECK_BIT(diff,curr)) {
 	    // vedo se il bit curr di oldval è a 0 o a 1
 	    cancello(curr, CHECK_BIT(oldval,curr) ? FALSE : TRUE);
