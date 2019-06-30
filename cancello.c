@@ -251,10 +251,13 @@ int main (int argc, char ** argv) {
       if (diff) {
 	uint8_t curr;
 	for (curr = 0; curr<4; curr++) {
-	  // al momento solo 4 pulsanti:
-	  // 2 per cancello scorrevole
-	  // 1 portoncino
-	  // 1 luce studio sotto
+	  /* 
+	     al momento solo 5 pulsanti:
+	     2 pulsanti per cancello scorrevole (apertura totale e apertura parziale) #0 #1
+	     1 pulsante per portoncino #2
+	     1 pulsante per luce studio sotto #3 
+	     1 pulsante scatola quadrata #4 #5 (attivo al rilascio)
+	  */
 	  if (CHECK_BIT(diff,curr)) {
 	    // vedo se il bit curr di oldval è a 0 o a 1
 	    cancello(curr, CHECK_BIT(oldval,curr) ? FALSE : TRUE);
