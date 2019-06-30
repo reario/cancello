@@ -32,7 +32,7 @@
 #define LOG_FILE        "/home/reario/cancello/cancello.log"
 
 modbus_t *mb_zbrn1;
-uint8_t coilmap[] = {APERTURA_PARZIALE,APERTURA_TOTALE,SERRATURA_PORTONE,LUCI_STUDIO_SOTTO,255};
+uint8_t coilmap[] = {APERTURA_PARZIALE,APERTURA_TOTALE,SERRATURA_PORTONE,LUCI_STUDIO_SOTTO,255,255};
 
 
 int ts(char * tst, char * fmt)
@@ -250,7 +250,7 @@ int main (int argc, char ** argv) {
       uint16_t diff = newval ^ oldval;
       if (diff) {
 	uint8_t curr;
-	for (curr = 0; curr<4; curr++) {
+	for (curr = 0; curr<6; curr++) {
 	  /* 
 	     al momento solo 5 pulsanti:
 	     2 pulsanti per cancello scorrevole (apertura totale e apertura parziale) #0 #1
