@@ -227,7 +227,9 @@ int main (int argc, char ** argv) {
     if ( modbus_read_registers(mb_zbrn1, 0, 1, zbrn1_reg) < 0 ) {
       // leggo lo stato degli ingressi collegati al wireless button
       numerr++;
-      sprintf(errmsg,"ERRORE Lettura Registro ZBRN1 per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+      	if ( numerr > 1  ) {
+	  sprintf(errmsg,"ERRORE Lettura Registro ZBRN1 per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+	}
       logvalue(LOG_FILE,errmsg);
       modbus_close(mb_zbrn1);
       modbus_free( mb_zbrn1);
@@ -235,10 +237,10 @@ int main (int argc, char ** argv) {
       modbus_set_response_timeout(mb_zbrn1, response_timeout_sec, response_timeout_usec); 
       modbus_set_slave(mb_zbrn1,248);
       if (modbus_connect(mb_zbrn1)==-1) {
-	if ( numerr > 1 ) {
+
 	  sprintf(errmsg,"\tERRORE Riconnessione ZBRN1 [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
 	  logvalue(LOG_FILE,errmsg);
-	}
+	
       }
       if (numerr > 15) {
 	system("echo \"Errore di lettura nel registro ZBRN1. Programma chiuso\" | \
