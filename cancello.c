@@ -235,8 +235,10 @@ int main (int argc, char ** argv) {
       modbus_set_response_timeout(mb_zbrn1, response_timeout_sec, response_timeout_usec); 
       modbus_set_slave(mb_zbrn1,248);
       if (modbus_connect(mb_zbrn1)==-1) {
-	sprintf(errmsg,"\tERRORE Riconnessione ZBRN1 [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
-	logvalue(LOG_FILE,errmsg);
+	if ( numerr > 1 ) {
+	  sprintf(errmsg,"\tERRORE Riconnessione ZBRN1 [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+	  logvalue(LOG_FILE,errmsg);
+	}
       }
       if (numerr > 15) {
 	system("echo \"Errore di lettura nel registro ZBRN1. Programma chiuso\" | \
