@@ -229,8 +229,9 @@ int main (int argc, char ** argv) {
       numerr++;
       	if ( numerr > 1  ) {
 	  sprintf(errmsg,"ERRORE Lettura Registro ZBRN1 per Cancello [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
+	  logvalue(LOG_FILE,errmsg);
 	}
-      logvalue(LOG_FILE,errmsg);
+
       modbus_close(mb_zbrn1);
       modbus_free( mb_zbrn1);
       mb_zbrn1 = modbus_new_tcp(ZBRN1_IP,PORT);
