@@ -16,16 +16,26 @@
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
-// IP Device
+// TWIDO IP Device
 #define ZBRN1_IP "192.168.1.160"
 #define PLC_IP "192.168.1.157"
 #define PORT 502
-
-// Uscite PLC TWIDO cancello
+// Uscite PLC TWIDO
 #define APERTURA_PARZIALE 96 /* %M96 TWIDO */
 #define APERTURA_TOTALE 97 /* %M97 TWIDO */
 #define SERRATURA_PORTONE 12 /* %M12 TWIDO */
 #define LUCI_STUDIO_SOTTO 7 /* %M7 */
+
+// OTB IP Device
+#define OTB_IP "192.168.1.11"
+// IN/OUT OTB
+#define OTB_OUT 100 // registro uscite OTB
+#define FARI_ESTERNI_SOPRA 0 // bit 0 del registro OUT_OTB
+#define FARI_ESTERNI_SOTTO 1 // bit 1 del registro OUT_OTB
+#define OTB_IN 0 // registro ingressi OTB
+#define FARI_ESTERNI_IN_SOPRA 11 // bit 11 registro IN_OTB 
+#define FARI_ESTERNI_IN_SOTTO 10 // bit 10 registro IN_OTB 
+
 // Directory
 #define RUNNING_DIR     "/home/reario/cancello/"
 #define LOCK_FILE       "/home/reario/cancello/cancello.lock"
@@ -33,7 +43,6 @@
 
 modbus_t *mb_zbrn1;
 uint8_t coilmap[] = {APERTURA_PARZIALE,APERTURA_TOTALE,SERRATURA_PORTONE,LUCI_STUDIO_SOTTO,255,255};
-
 
 int ts(char * tst, char * fmt)
 {
@@ -153,6 +162,71 @@ void daemonize()
   logvalue(LOG_FILE,"****************** START **********************\n");
 }
 
+// serve per i faretti, ripresa da newf.c dentro ~/faretti
+int faretti_sopra(uint16_t FARI) {
+
+  modbus_t *mb_otb;
+  char errmsg[100];
+
+  // IMPORTANTE: ormask e and mask sono costruite tenendo conto che:
+  //  - nella and_mask ci sono 0 per i bit che cambiano e 1 per quelli che non cambiano
+  //    passando la diff tra quelli della interazione prima e quelli della interazione dopo
+  //    la and_mask la ottengo facendo la negazione dei coils
+  //  - nella or_mask c'è 1 se il bit va da 0->1 e c'è 0 se il bit va da 1->0
+  //  - nella or_mask contano solo i bit che cambiano. Gli altri bit sono ininfluenti
+  //  - AND_MASK: per ogni bit che cambia metto 1: (1<<BITa)|(1<<BITb)|.....(BITn) e poi faccio
+  //    la negazione trovandomi 0 dove cambiano e 1 dove rimangono invariati
+  //  - OR_MASK: se 0->1 (1<<BITa), se 1->0 (0<<BITb) facendo l'OR di tutti
+
+  uint16_t and_mask = 0;
+  uint16_t or_mask  = 0;
+  uint16_t status[1];
+
+  mb_otb = modbus_new_tcp(OTB_IP,PORT);
+  modbus_set_response_timeout(mb_otb,  2, 0); // 2 seconds 0 usec
+  if ( (modbus_connect(mb_otb) == -1 )) {
+    sprintf(errmsg,"ERRORE non riesco a connettermi con OTB %s\n",modbus_strerror(errno));
+    logvalue(LOG_FILE,errmsg);
+    return -1;
+  }
+  
+  
+  // 1) check lo stato dei faretti
+  if (modbus_read_registers(mb_otb, OTB_IN, 1,status) == -1)
+    {
+      sprintf(errmsg,"Errore READ IN registro of OTB\n");
+      logvalue(LOG_FILE,errmsg);
+      return -1;
+    }
+  
+  if (CHECK_BIT(status[0],FARI==FARI_ESTERNI_SOPRA?FARI_ESTERNI_IN_SOPRA:FARI_ESTERNI_IN_SOTTO)) {
+    // fari esterni sopra accesi: allora li spengo
+    and_mask = ~(1<<FARI);
+    or_mask = (0<<FARI);
+  } else {
+    // fari esterni sopra erano spenti: allora li accendo
+    and_mask = ~(1<<FARI);
+    or_mask = (1<<FARI);
+  }
+  
+  if (modbus_mask_write_register(mb_otb,OTB_OUT,and_mask,or_mask) == -1) {
+    sprintf(errmsg,"ERRORE nella funzione interruttore %s\n",modbus_strerror(errno));
+    logvalue(LOG_FILE,errmsg);
+    modbus_close(mb_otb);
+    modbus_free(mb_otb);
+    return -1;
+  }
+  
+  modbus_close(mb_otb);
+  modbus_free(mb_otb);
+  
+  return 1;
+
+  /* printbitssimple(R); */
+  /* R = (R & and_mask) | (or_mask & (~and_mask)); */
+  /* printf("dopo R = "); */
+  /* printbitssimple(R); */
+}
 
 uint8_t cancello(uint8_t current, uint8_t onoff)
 {
@@ -171,10 +245,6 @@ uint8_t cancello(uint8_t current, uint8_t onoff)
   bobina=coilmap[current];
   sprintf(msg,"modbus_write_bit(m,%u,%s);\n",bobina,onoff?"ON":"OFF");
   logvalue(LOG_FILE,msg);
-  /* sprintf(msg,"modbus_write_bit(m,%s,%s);\n" */
-  /* 	  ,bobina==APERTURA_PARZIALE?"APERTURA_PARZIALE":"APERTURA_TOTALE", */
-  /* 	  onoff?"ON":"OFF"); */
-  /* logvalue(LOG_FILE,msg); */
   if (current >= 4) {
     modbus_close(mb_plc);
     modbus_free(mb_plc);
@@ -263,9 +333,25 @@ int main (int argc, char ** argv) {
 	     1 pulsante per luce studio sotto #3 
 	     1 pulsante scatola quadrata #4 #5 (attivo al rilascio)
 	  */
+	  // diff contiene 1 sui bit cambiati
+	  // => 1 in oldval significa 1->0
+	  // => 0 in oldval significa 0->1
 	  if (CHECK_BIT(diff,curr)) {
 	    // vedo se il bit curr di oldval è a 0 o a 1
+	    if (curr<4) {
 	    cancello(curr, CHECK_BIT(oldval,curr) ? FALSE : TRUE);
+	    } else { // !CHECK_BIT(oldval,curr) vuol dire che ho la transizione da 0->1
+	      if ( (curr == 4) && !CHECK_BIT(oldval,curr)) {
+		faretti_sopra(FARI_ESTERNI_SOTTO);
+	      }
+	      if ( (curr == 5) && !CHECK_BIT(oldval,curr)) {
+		faretti_sopra(FARI_ESTERNI_SOPRA);
+	      }
+	      
+	    }
+
+
+	      
 	  }
 	}	
       }
