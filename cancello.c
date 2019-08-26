@@ -163,7 +163,7 @@ void daemonize()
 }
 
 // serve per i faretti, ripresa da newf.c dentro ~/faretti
-int faretti_sopra(uint16_t FARI) {
+int faretti(uint16_t FARI) {
 
   modbus_t *mb_otb;
   char errmsg[100];
@@ -342,10 +342,10 @@ int main (int argc, char ** argv) {
 	    cancello(curr, CHECK_BIT(oldval,curr) ? FALSE : TRUE);
 	    } else { // !CHECK_BIT(oldval,curr) vuol dire che ho la transizione da 0->1
 	      if ( (curr == 4) && !CHECK_BIT(oldval,curr)) {
-		faretti_sopra(FARI_ESTERNI_SOTTO);
+		faretti(FARI_ESTERNI_SOTTO);
 	      }
 	      if ( (curr == 5) && !CHECK_BIT(oldval,curr)) {
-		faretti_sopra(FARI_ESTERNI_SOPRA);
+		faretti(FARI_ESTERNI_SOPRA);
 	      }
 	      
 	    }
