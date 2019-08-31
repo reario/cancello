@@ -200,7 +200,8 @@ int faretti(uint16_t FARI) {
 
   // se CHECK_BIT=1 allora il faretto è acceso e lo devo spegnere (or_mask con 0<<FARI)
   // se CHECK_BIT=0 allora il faretto è spento e lo devo accender (or_mask con 1<<FARI)
-  uint16_t accendo_o_spengo=CHECK_BIT(status[0],FARI==FARI_ESTERNI_SOPRA?FARI_ESTERNI_IN_SOPRA:FARI_ESTERNI_IN_SOTTO)?0:1;
+  uint16_t what = CHECK_BIT(status[0],FARI==FARI_ESTERNI_SOPRA?FARI_ESTERNI_IN_SOPRA:FARI_ESTERNI_IN_SOTTO);
+  uint16_t accendo_o_spengo=what?0:1;
   and_mask = ~(1<<FARI);
   or_mask = (accendo_o_spengo<<FARI);
   
