@@ -14,7 +14,7 @@
 #include <time.h>
 #include <modbus.h>
 
-#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+#define CHECK_BIT(var,pos) ( (var) & (1<<(pos)) )
 
 // TWIDO IP Device
 #define ZBRN1_IP "192.168.1.160"
@@ -189,8 +189,7 @@ int faretti(uint16_t FARI) {
     logvalue(LOG_FILE,errmsg);
     return -1;
   }
-  
-  
+    
   // 1) check lo stato dei faretti
   if (modbus_read_registers(mb_otb, OTB_IN, 1,status) == -1)
     {
@@ -198,16 +197,30 @@ int faretti(uint16_t FARI) {
       logvalue(LOG_FILE,errmsg);
       return -1;
     }
+
+  // se CHECK_BIT=1 allora il faretto è acceso e lo devo spegnere (or_mask con 0<<FARI)
+  // se CHECK_BIT=0 allora il faretto è spento e lo devo accender (or_mask con 1<<FARI)
+  uint16_t accendo_o_spengo=CHECK_BIT(status[0],FARI==FARI_ESTERNI_SOPRA?FARI_ESTERNI_IN_SOPRA:FARI_ESTERNI_IN_SOTTO)?0:1;
+  and_mask = ~(1<<FARI);
+  or_mask = (accendo_o_spengo<<FARI);
   
+  /*
   if (CHECK_BIT(status[0],FARI==FARI_ESTERNI_SOPRA?FARI_ESTERNI_IN_SOPRA:FARI_ESTERNI_IN_SOTTO)) {
-    // fari esterni sopra accesi: allora li spengo
+    // fari esterni sotto accesi: allora li spengo
+    sprintf(errmsg,"Spengo i fari esterni \n");
+    logvalue(LOG_FILE,errmsg);
+
     and_mask = ~(1<<FARI);
     or_mask = (0<<FARI);
   } else {
     // fari esterni sopra erano spenti: allora li accendo
+    sprintf(errmsg,"Accendo i fari esterni \n");
+    logvalue(LOG_FILE,errmsg);
+    
     and_mask = ~(1<<FARI);
     or_mask = (1<<FARI);
   }
+  */
   
   if (modbus_mask_write_register(mb_otb,OTB_OUT,and_mask,or_mask) == -1) {
     sprintf(errmsg,"ERRORE nella funzione interruttore %s\n",modbus_strerror(errno));
@@ -334,24 +347,20 @@ int main (int argc, char ** argv) {
 	     1 pulsante scatola quadrata #4 #5 (attivo al rilascio)
 	  */
 	  // diff contiene 1 sui bit cambiati
-	  // => 1 in oldval significa 1->0
-	  // => 0 in oldval significa 0->1
+	  // se ho 1 in un bit di oldval significa 1->0
+	  // se ho 0 in un bit di oldval significa 0->1
 	  if (CHECK_BIT(diff,curr)) {
 	    // vedo se il bit curr di oldval è a 0 o a 1
 	    if (curr<4) {
-	    cancello(curr, CHECK_BIT(oldval,curr) ? FALSE : TRUE);
+	      cancello(curr, CHECK_BIT(oldval,curr) ? FALSE : TRUE);
 	    } else { // !CHECK_BIT(oldval,curr) vuol dire che ho la transizione da 0->1
 	      if ( (curr == 4) && !CHECK_BIT(oldval,curr)) {
 		faretti(FARI_ESTERNI_SOTTO);
 	      }
 	      if ( (curr == 5) && !CHECK_BIT(oldval,curr)) {
 		faretti(FARI_ESTERNI_SOPRA);
-	      }
-	      
-	    }
-
-
-	      
+	      }	      
+	    }	      
 	  }
 	}	
       }
