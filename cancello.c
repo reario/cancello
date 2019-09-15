@@ -339,7 +339,7 @@ int main (int argc, char ** argv) {
       uint16_t diff = newval ^ oldval;
       if (diff) {
 	uint8_t curr;
-	for (curr = 0; curr<6; curr++) {
+	for (curr = 0; curr<8; curr++) {
 	  /* 
 	     al momento solo 5 pulsanti:
 	     2 pulsanti per cancello scorrevole (apertura totale e apertura parziale) #0 #1
@@ -360,14 +360,20 @@ int main (int argc, char ** argv) {
 	      }
 	      if ( (curr == 5) && !CHECK_BIT(oldval,curr)) {
 		faretti(FARI_ESTERNI_SOPRA);
-	      }	      
-	    }	      
+	      }
+	       if ( (curr == 6) && !CHECK_BIT(oldval,curr)) {
+		faretti(FARI_ESTERNI_SOTTO);
+	      }
+	        if ( (curr == 7) && !CHECK_BIT(oldval,curr)) {
+		faretti(FARI_ESTERNI_SOPRA);
+	      }
+	    }
 	  }
-	}	
+	}
       }
-      numerr=0;
-      oldval=newval;                 
-    } // else
+	  numerr=0;
+	  oldval=newval;                 
+	} // else
     usleep(200000); // 2/10 sec
   } // while
   return 0; 
