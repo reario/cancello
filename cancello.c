@@ -321,6 +321,7 @@ int main (int argc, char ** argv) {
       mb_zbrn1 = modbus_new_tcp(ZBRN1_IP,PORT);
       modbus_set_response_timeout(mb_zbrn1, response_timeout_sec, response_timeout_usec); 
       modbus_set_slave(mb_zbrn1,248);
+      /*********************************************/
       if (modbus_connect(mb_zbrn1)==-1) {
 
 	  sprintf(errmsg,"\tERRORE Riconnessione ZBRN1 [%s]. Num err [%i]\n",modbus_strerror(errno),numerr);
@@ -334,6 +335,7 @@ int main (int argc, char ** argv) {
 	myCleanExit("Too many errors while reading ZBRN1 registers\n");
 	exit(EXIT_FAILURE);
       }
+      /*********************************************/
     } else {
       newval=zbrn1_reg[0]; // registro 1 dove sono messi i primi 16 pulsanti (bit da 0 a 15)
       uint16_t diff = newval ^ oldval;

@@ -11,9 +11,12 @@ DBINCDIR = /usr/include/postgresql/
 
 #objs = cancello-read-from-pc.o cancello.o bit.o
 
-all: cancello cancello-read-from-pc
+all: cancello cancello-read-from-pc cancello-new
 
 cancello: bit.o cancello.o
+	$(CC) -Wall -L${LIBDIR} -lmodbus $^ -o $@
+
+cancello-new: bit.o cancello-new.o
 	$(CC) -Wall -L${LIBDIR} -lmodbus $^ -o $@
 
 cancello-read-from-pc: bit.o cancello-read-from-pc.o
