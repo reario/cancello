@@ -35,7 +35,7 @@
 #define OTB_IN 0 // registro ingressi OTB
 #define FARI_ESTERNI_IN_SOPRA 11 // bit 11 registro IN_OTB 
 #define FARI_ESTERNI_IN_SOTTO 10 // bit 10 registro IN_OTB 
-
+#define SONOFF 9 // bit 9 registro IN_OTB
 // Directory
 #define RUNNING_DIR     "/home/reario/cancello/"
 #define LOCK_FILE       "/home/reario/cancello/cancello.lock"
@@ -162,6 +162,13 @@ void daemonize()
   logvalue(LOG_FILE,"****************** START **********************\n");
 }
 
+
+
+
+
+
+
+
 // serve per i faretti, ripresa da newf.c dentro ~/faretti
 int faretti(uint16_t FARI) {
 
@@ -180,7 +187,7 @@ int faretti(uint16_t FARI) {
 
   uint16_t and_mask = 0;
   uint16_t or_mask  = 0;
-  uint16_t status[1];
+  uint16_t status[1]; // array di un elemento da 16 bit
 
   mb_otb = modbus_new_tcp(OTB_IP,PORT);
   modbus_set_response_timeout(mb_otb,  2, 0); // 2 seconds 0 usec
@@ -204,24 +211,6 @@ int faretti(uint16_t FARI) {
   uint16_t accendo_o_spengo=what?0:1;
   and_mask = ~(1<<FARI);
   or_mask = (accendo_o_spengo<<FARI);
-  
-  /*
-  if (CHECK_BIT(status[0],FARI==FARI_ESTERNI_SOPRA?FARI_ESTERNI_IN_SOPRA:FARI_ESTERNI_IN_SOTTO)) {
-    // fari esterni sotto accesi: allora li spengo
-    sprintf(errmsg,"Spengo i fari esterni \n");
-    logvalue(LOG_FILE,errmsg);
-
-    and_mask = ~(1<<FARI);
-    or_mask = (0<<FARI);
-  } else {
-    // fari esterni sopra erano spenti: allora li accendo
-    sprintf(errmsg,"Accendo i fari esterni \n");
-    logvalue(LOG_FILE,errmsg);
-    
-    and_mask = ~(1<<FARI);
-    or_mask = (1<<FARI);
-  }
-  */
   
   if (modbus_mask_write_register(mb_otb,OTB_OUT,and_mask,or_mask) == -1) {
     sprintf(errmsg,"ERRORE nella funzione interruttore %s\n",modbus_strerror(errno));
