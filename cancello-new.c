@@ -42,7 +42,7 @@
 #define LOG_FILE        "/home/reario/cancello/cancello.log"
 
 modbus_t *mb_zbrn1;
-uint8_t coilmap[] = {APERTURA_PARZIALE,APERTURA_TOTALE,SERRATURA_PORTONE,LUCI_STUDIO_SOTTO,255,255};
+uint8_t coilmap[] = {APERTURA_PARZIALE,APERTURA_TOTALE,SERRATURA_PORTONE,LUCI_STUDIO_SOTTO,APERTURA_TOTALE,APERTURA_PARZIALE,255,255};
 
 int ts(char * tst, char * fmt)
 {
@@ -162,13 +162,6 @@ void daemonize()
   logvalue(LOG_FILE,"****************** START **********************\n");
 }
 
-
-
-
-
-
-
-
 // serve per i faretti, ripresa da newf.c dentro ~/faretti
 int faretti(uint16_t FARI) {
 
@@ -248,7 +241,7 @@ uint8_t cancello(uint8_t current, uint8_t onoff)
   bobina=coilmap[current];
   sprintf(msg,"modbus_write_bit(m,%u,%s);\n",bobina,onoff?"ON":"OFF");
   logvalue(LOG_FILE,msg);
-  if (current >= 4) {
+  if (current > 5) {
     modbus_close(mb_plc);
     modbus_free(mb_plc);
     return 1;
@@ -304,25 +297,19 @@ int main (int argc, char ** argv) {
 	  for (curr = 0; curr<8; curr++) {
 	    /* 
 	       al momento solo 5 pulsanti:
-	       2 pulsanti per cancello scorrevole (apertura totale e apertura parziale) #0 #1
+	       2 pulsanti per cancello scorrevole (apertura totale e apertura parziale) #0 #1 vedi posizione sulla variabile mapcoil
 	       1 pulsante per portoncino #2
 	       1 pulsante per luce studio sotto #3 
-	       1 pulsante scatola quadrata #4 #5 (attivo al rilascio)
+	       2 pulsanti per cancello scorrevole (apertura totale e apertura parziale) #4 #5 vedi posizione sulla variabile mapcoil
 	    */
 	    // diff contiene 1 sui bit cambiati
 	    // se ho 1 in un bit di oldval significa 1->0
 	    // se ho 0 in un bit di oldval significa 0->1
 	    if (CHECK_BIT(diff,curr)) {
 	      // vedo se il bit curr di oldval è a 0 o a 1
-	      if (curr<4) {
+	      if (curr<6) {
 		cancello(curr, CHECK_BIT(oldval,curr) ? FALSE : TRUE);
 	      } else { // !CHECK_BIT(oldval,curr) vuol dire che ho la transizione da 0->1
-		if ( (curr == 4) && !CHECK_BIT(oldval,curr)) {
-		  faretti(FARI_ESTERNI_SOTTO);
-		}
-		if ( (curr == 5) && !CHECK_BIT(oldval,curr)) {
-		  faretti(FARI_ESTERNI_SOPRA);
-		}
 		if ( (curr == 6) && !CHECK_BIT(oldval,curr)) {
 		  faretti(FARI_ESTERNI_SOTTO);
 		}

@@ -53,6 +53,7 @@ dkms.conf
 
 cancello-read-from-pc
 cancello
+cancello-new
 *.log
 *.lock
 libmodbus/*
